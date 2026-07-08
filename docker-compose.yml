@@ -37,7 +37,7 @@ services:
   # One-shot: applies db/migrations/*.sql then seeds accounts, users and markets.
   migrate:
     build:
-      context: ./apps/buyer-web
+      context: .
       target: migrate
     environment:
       DATABASE_URL: postgres://prive:${POSTGRES_PASSWORD:-prive_dev_password}@db:5432/prive
@@ -51,7 +51,7 @@ services:
 
   web:
     build:
-      context: ./apps/buyer-web
+      context: .
       target: runner
     ports:
       - "${WEB_PORT:-3000}:3000"

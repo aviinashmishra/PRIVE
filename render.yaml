@@ -1,17 +1,18 @@
 # Render Blueprint — deploy the Prive Exchange web platform + Postgres.
 # In Render: New → Blueprint → point at this repo. Docs: https://render.com/docs/blueprint-spec
 #
-# The web service builds apps/buyer-web/Dockerfile (multi-stage, standalone Next.js,
-# non-root runner). RUN_MIGRATIONS=true makes the container apply db/migrations/*.sql
-# and seed idempotently on every boot, so no separate job is needed.
+# The web service builds the root Dockerfile (multi-stage, standalone Next.js,
+# non-root runner) — the root location means a manually-created Docker web service
+# also builds with Render's defaults. RUN_MIGRATIONS=true makes the container apply
+# db/migrations/*.sql and seed idempotently on every boot, so no separate job is needed.
 
 services:
   - type: web
     name: prive-exchange
     runtime: docker
     plan: starter
-    dockerfilePath: ./apps/buyer-web/Dockerfile
-    dockerContext: ./apps/buyer-web
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:

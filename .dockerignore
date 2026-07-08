@@ -1,0 +1,19 @@
+# keep the build context small — only apps/buyer-web sources are needed
+**/node_modules
+**/.next
+.git
+
+# secrets never enter the image (templates are fine)
+.env
+**/.env
+**/.env.*
+!**/.env.example
+
+# not needed to build the web app
+contracts/
+docs/
+api/
+**/tsconfig.tsbuildinfo
+Dockerfile
+docker-compose.yml
+render.yaml

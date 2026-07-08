@@ -1,14 +1,16 @@
-# Prive Exchange — buyer-web (Next.js 14, standalone output)
+# Prive Exchange — buyer-web (Next.js 14, standalone output).
+# Lives at the repo root so Render/other PaaS defaults (context ".", file "Dockerfile")
+# work with zero configuration; docker-compose builds the same file.
 # Stages: deps → builder → { migrate (one-shot DB setup) | runner (production server) }
 
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY apps/buyer-web/package.json apps/buyer-web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
 FROM deps AS builder
 WORKDIR /app
-COPY . .
+COPY apps/buyer-web/ .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
@@ -29,7 +31,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Migration scripts + SQL for RUN_MIGRATIONS=true startups (drivers pg /
 # @neondatabase/serverless / @node-rs/argon2 are already traced into standalone).
 COPY --from=builder --chown=nextjs:nodejs /app/db ./db
-COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
+COPY --chown=nextjs:nodejs apps/buyer-web/docker-entrypoint.sh ./
 RUN sed -i 's/\r$//' docker-entrypoint.sh && chmod +x docker-entrypoint.sh
 USER nextjs
 EXPOSE 3000
