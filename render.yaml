@@ -1,0 +1,56 @@
+# Render Blueprint — deploy the Prive Exchange web platform + Postgres.
+# In Render: New → Blueprint → point at this repo. Docs: https://render.com/docs/blueprint-spec
+#
+# The web service builds apps/buyer-web/Dockerfile (multi-stage, standalone Next.js,
+# non-root runner). RUN_MIGRATIONS=true makes the container apply db/migrations/*.sql
+# and seed idempotently on every boot, so no separate job is needed.
+
+services:
+  - type: web
+    name: prive-exchange
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./apps/buyer-web/Dockerfile
+    dockerContext: ./apps/buyer-web
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: prive-db
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: RUN_MIGRATIONS
+        value: "true"
+      # Set to your Render URL (or custom domain) after the first deploy —
+      # it is used in emailed password-reset links.
+      - key: APP_URL
+        sync: false
+      # SMTP for verification/reset emails (e.g. Resend, Postmark, SES, Brevo).
+      # Leave unset to print emails to the service logs instead.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_SECURE
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      # Override the seeded demo-user passwords in production.
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      - key: SEED_TRADER_PASSWORD
+        sync: false
+      - key: SEED_SELLER_PASSWORD
+        sync: false
+
+databases:
+  - name: prive-db
+    plan: basic-256mb
+    databaseName: prive
+    user: prive

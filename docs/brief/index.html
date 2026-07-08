@@ -1,0 +1,559 @@
+<title>Prive Exchange — Engineering Dossier</title>
+<style>
+  /* ============================== TOKENS ============================== */
+  :root {
+    /* neutrals carry a slight green bias — chosen, not inherited */
+    --ground: #F2F4F0;
+    --surface: #FBFCFA;
+    --surface-2: #ECEFEA;
+    --ink: #10201A;
+    --ink-soft: #47564F;
+    --ink-faint: #78867E;
+    --line: #DBE2DA;
+    --line-strong: #C6CFC5;
+    /* the duality: verified carbon green + atmospheric market blue */
+    --green: #0E9F6E;
+    --green-deep: #0B7C56;
+    --blue: #2E6F8E;
+    --blue-deep: #245A74;
+    --green-wash: #E4F0E9;
+    --blue-wash: #E3EDF2;
+    /* semantic, kept apart from the accents */
+    --warn: #B7841F;
+    --crit: #C0503B;
+    --shadow: 0 1px 2px rgba(16,32,26,.04), 0 8px 28px -12px rgba(16,32,26,.14);
+    --radius: 14px;
+    --maxw: 1120px;
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", "Segoe UI Mono", Menlo, monospace;
+    --sans: ui-sans-serif, system-ui, "Segoe UI Variable Text", "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0A130F;
+      --surface: #101A15;
+      --surface-2: #16221C;
+      --ink: #E8EFE9;
+      --ink-soft: #9DB0A6;
+      --ink-faint: #6E8177;
+      --line: #1E2C25;
+      --line-strong: #2A3A31;
+      --green: #23C286;
+      --green-deep: #1AA372;
+      --blue: #5AA6C8;
+      --blue-deep: #3E88AB;
+      --green-wash: #12241C;
+      --blue-wash: #12222A;
+      --warn: #D6A63E;
+      --crit: #D66A54;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 14px 40px -18px rgba(0,0,0,.6);
+    }
+  }
+  /* explicit toggle overrides the media query in both directions */
+  :root[data-theme="light"] {
+    --ground: #F2F4F0; --surface: #FBFCFA; --surface-2: #ECEFEA;
+    --ink: #10201A; --ink-soft: #47564F; --ink-faint: #78867E;
+    --line: #DBE2DA; --line-strong: #C6CFC5;
+    --green: #0E9F6E; --green-deep: #0B7C56; --blue: #2E6F8E; --blue-deep: #245A74;
+    --green-wash: #E4F0E9; --blue-wash: #E3EDF2; --warn: #B7841F; --crit: #C0503B;
+    --shadow: 0 1px 2px rgba(16,32,26,.04), 0 8px 28px -12px rgba(16,32,26,.14);
+  }
+  :root[data-theme="dark"] {
+    --ground: #0A130F; --surface: #101A15; --surface-2: #16221C;
+    --ink: #E8EFE9; --ink-soft: #9DB0A6; --ink-faint: #6E8177;
+    --line: #1E2C25; --line-strong: #2A3A31;
+    --green: #23C286; --green-deep: #1AA372; --blue: #5AA6C8; --blue-deep: #3E88AB;
+    --green-wash: #12241C; --blue-wash: #12222A; --warn: #D6A63E; --crit: #D66A54;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 14px 40px -18px rgba(0,0,0,.6);
+  }
+
+  /* ============================== BASE ============================== */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); line-height: 1.6;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  h1, h2, h3 { text-wrap: balance; line-height: 1.12; margin: 0; letter-spacing: -.015em; }
+  p { margin: 0; }
+  a { color: inherit; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .eyebrow {
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--ink-faint);
+  }
+
+  /* ============================== NAV ============================== */
+  header.nav {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--ground) 86%, transparent);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+  }
+  .nav-in { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 11px; font-weight: 640; letter-spacing: -.02em; }
+  .brand .mark {
+    width: 26px; height: 26px; border-radius: 7px; position: relative; flex: none;
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue) 48%, var(--green) 52%, var(--green) 100%);
+  }
+  .brand .mark::after {
+    content: ""; position: absolute; inset: 6px; border-radius: 3px;
+    background: var(--ground);
+  }
+  .brand small { font-family: var(--mono); font-weight: 400; font-size: .68rem;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); }
+  .nav-links { display: flex; gap: 26px; align-items: center; }
+  .nav-links a { text-decoration: none; font-size: .86rem; color: var(--ink-soft); transition: color .15s; }
+  .nav-links a:hover { color: var(--ink); }
+  #themeBtn {
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; cursor: pointer;
+    background: var(--surface); color: var(--ink-soft); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 11px; transition: border-color .15s, color .15s;
+  }
+  #themeBtn:hover { border-color: var(--line-strong); color: var(--ink); }
+  @media (max-width: 720px) { .nav-links a:not(.util) { display: none; } }
+
+  /* ============================== HERO ============================== */
+  .hero { padding: 92px 0 64px; position: relative; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+    background:
+      radial-gradient(60% 80% at 15% 0%, var(--blue-wash) 0%, transparent 60%),
+      radial-gradient(55% 75% at 90% 20%, var(--green-wash) 0%, transparent 62%);
+  }
+  .hero .wrap { position: relative; }
+  .hero-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+  .chip {
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .04em;
+    border: 1px solid var(--line-strong); border-radius: 999px; padding: 5px 12px;
+    color: var(--ink-soft); background: var(--surface);
+  }
+  .chip b { color: var(--ink); font-weight: 600; }
+  h1.title {
+    font-size: clamp(2.3rem, 5.4vw, 3.9rem); font-weight: 680; max-width: 15ch;
+  }
+  h1.title .g { color: var(--green); } h1.title .b { color: var(--blue); }
+  .lede { margin-top: 22px; font-size: clamp(1.05rem, 1.6vw, 1.24rem);
+    color: var(--ink-soft); max-width: 60ch; }
+  .hero-sub { margin-top: 14px; font-size: .95rem; color: var(--ink-faint); max-width: 62ch; }
+
+  /* ============================== DUALITY ============================== */
+  .duality { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 46px; }
+  @media (max-width: 720px) { .duality { grid-template-columns: 1fr; } }
+  .trust {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 26px 24px; position: relative; box-shadow: var(--shadow);
+  }
+  .trust::before {
+    content: ""; position: absolute; left: 0; top: 20px; bottom: 20px; width: 3px;
+    border-radius: 3px;
+  }
+  .trust.market::before { background: var(--blue); }
+  .trust.planet::before { background: var(--green); }
+  .trust .q-label { font-family: var(--mono); font-size: .72rem; letter-spacing: .14em;
+    text-transform: uppercase; margin-bottom: 12px; }
+  .trust.market .q-label { color: var(--blue); }
+  .trust.planet .q-label { color: var(--green); }
+  .trust h3 { font-size: 1.32rem; font-weight: 620; margin-bottom: 10px; }
+  .trust p { color: var(--ink-soft); font-size: .95rem; }
+
+  /* ============================== KPI STRIP ============================== */
+  section { padding: 62px 0; }
+  .section-head { max-width: 62ch; margin-bottom: 34px; }
+  .section-head .eyebrow { display: block; margin-bottom: 12px; }
+  .section-head h2 { font-size: clamp(1.55rem, 3vw, 2.1rem); font-weight: 640; }
+  .section-head p { margin-top: 12px; color: var(--ink-soft); }
+
+  .kpis {
+    display: grid; grid-template-columns: repeat(6, 1fr);
+    border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+    background: var(--surface);
+  }
+  @media (max-width: 860px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 480px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { padding: 22px 20px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .kpi:nth-child(6n) { border-right: none; }
+  .kpi .n { font-family: var(--mono); font-size: 1.9rem; font-weight: 600;
+    font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
+  .kpi .n .u { font-size: .9rem; color: var(--ink-faint); margin-left: 3px; }
+  .kpi .k { margin-top: 9px; font-size: .78rem; color: var(--ink-soft); line-height: 1.35; }
+  .kpi.accent-g .n { color: var(--green); } .kpi.accent-b .n { color: var(--blue); }
+
+  /* ============================== DOSSIER ============================== */
+  .dossier { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  @media (max-width: 720px) { .dossier { grid-template-columns: 1fr; } }
+  .doc {
+    display: flex; gap: 16px; align-items: baseline; text-decoration: none;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px 20px; transition: border-color .16s, transform .16s, box-shadow .16s;
+  }
+  .doc:hover { border-color: var(--line-strong); transform: translateY(-2px); box-shadow: var(--shadow); }
+  .doc .num { font-family: var(--mono); font-size: .82rem; color: var(--green);
+    font-weight: 600; flex: none; width: 2.2ch; }
+  .doc .body h4 { font-size: 1rem; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }
+  .doc .body p { font-size: .86rem; color: var(--ink-soft); }
+  .doc .body .path { font-family: var(--mono); font-size: .72rem; color: var(--ink-faint); margin-top: 8px; }
+  .doc.aux .num { color: var(--blue); }
+
+  /* ============================== ARCHITECTURE SPLIT ============================== */
+  .split {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 0;
+    border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+    background: var(--surface);
+  }
+  @media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+  .side { padding: 28px 26px; }
+  .side.off { background: linear-gradient(180deg, var(--blue-wash), transparent 70%); }
+  .side.on { background: linear-gradient(180deg, var(--green-wash), transparent 70%); }
+  .side .tag { font-family: var(--mono); font-size: .72rem; letter-spacing: .12em;
+    text-transform: uppercase; font-weight: 600; }
+  .side.off .tag { color: var(--blue); } .side.on .tag { color: var(--green); }
+  .side h3 { font-size: 1.16rem; font-weight: 620; margin: 10px 0 4px; }
+  .side .why { font-size: .84rem; color: var(--ink-faint); margin-bottom: 16px; }
+  .side ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  .side li { font-size: .9rem; color: var(--ink-soft); display: flex; gap: 9px; align-items: baseline; }
+  .side li::before { content: ""; width: 6px; height: 6px; border-radius: 2px; flex: none;
+    transform: translateY(-1px); }
+  .side.off li::before { background: var(--blue); } .side.on li::before { background: var(--green); }
+  .seam { width: 1px; background: repeating-linear-gradient(180deg, var(--line-strong) 0 6px, transparent 6px 12px);
+    position: relative; }
+  @media (max-width: 760px) { .seam { width: auto; height: 1px;
+    background: repeating-linear-gradient(90deg, var(--line-strong) 0 6px, transparent 6px 12px); } }
+  .seam .badge {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(90deg);
+    font-family: var(--mono); font-size: .66rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-faint); background: var(--surface); padding: 6px 8px; white-space: nowrap;
+    border: 1px solid var(--line); border-radius: 6px;
+  }
+  @media (max-width: 760px) { .seam .badge { transform: translate(-50%,-50%); } }
+  .arch-foot { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .arch-foot .chip b { color: var(--green); }
+
+  /* ============================== SCOPE ============================== */
+  .scope { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 720px) { .scope { grid-template-columns: 1fr; } }
+  .scope-col { background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 24px; }
+  .scope-col h3 { font-size: 1.05rem; font-weight: 620; display: flex; align-items: center; gap: 10px; }
+  .scope-col .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .scope-col.in .dot { background: var(--green); } .scope-col.later .dot { background: var(--ink-faint); }
+  .scope-col ul { margin: 16px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .scope-col li { font-size: .9rem; color: var(--ink-soft); padding-left: 20px; position: relative; }
+  .scope-col li::before { position: absolute; left: 0; top: 0; font-family: var(--mono); font-size: .82rem; }
+  .scope-col.in li::before { content: "+"; color: var(--green); }
+  .scope-col.later li::before { content: "→"; color: var(--ink-faint); }
+
+  /* ============================== TIMELINE ============================== */
+  .timeline { display: flex; flex-direction: column; gap: 0; position: relative; }
+  .tl-row { display: grid; grid-template-columns: 84px 1fr; gap: 20px; padding: 16px 0;
+    border-bottom: 1px solid var(--line); position: relative; }
+  .tl-row:last-child { border-bottom: none; }
+  .tl-s { font-family: var(--mono); font-size: .78rem; font-weight: 600; color: var(--green);
+    display: flex; align-items: baseline; gap: 8px; padding-top: 2px; }
+  .tl-body h4 { font-size: .98rem; font-weight: 600; margin-bottom: 3px; }
+  .tl-body p { font-size: .85rem; color: var(--ink-soft); }
+  .tl-row.gate { background: var(--green-wash); border-radius: 12px; border-bottom: none;
+    padding: 18px 18px; margin-top: 8px; }
+  .tl-row.gate .tl-s { color: var(--green-deep); }
+  .tl-row.gate h4 { color: var(--green-deep); }
+
+  /* ============================== DECISIONS ============================== */
+  .decisions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  @media (max-width: 720px) { .decisions { grid-template-columns: 1fr; } }
+  .decision { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--warn);
+    border-radius: 10px; padding: 18px 20px; }
+  .decision .qn { font-family: var(--mono); font-size: .72rem; color: var(--warn); font-weight: 600;
+    letter-spacing: .06em; }
+  .decision h4 { font-size: .98rem; font-weight: 620; margin: 7px 0 5px; }
+  .decision p { font-size: .85rem; color: var(--ink-soft); }
+  .callout {
+    margin-bottom: 30px; padding: 16px 20px; border-radius: 12px;
+    background: color-mix(in srgb, var(--warn) 12%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--warn) 34%, var(--line));
+    font-size: .9rem; color: var(--ink-soft);
+  }
+  .callout b { color: var(--ink); }
+
+  /* ============================== FOOTER ============================== */
+  footer { border-top: 1px solid var(--line); padding: 44px 0 60px; margin-top: 30px; }
+  .foot-grid { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  footer p { font-size: .84rem; color: var(--ink-faint); max-width: 52ch; }
+  footer .stamp { font-family: var(--mono); font-size: .72rem; color: var(--ink-faint);
+    letter-spacing: .04em; text-align: right; }
+  .principle { font-size: .95rem; color: var(--ink-soft); font-style: italic; margin-top: 4px; }
+
+  /* ============================== MOTION ============================== */
+  .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { opacity: 1; transform: none; transition: none; }
+    * { scroll-behavior: auto !important; }
+  }
+  :focus-visible { outline: 2px solid var(--green); outline-offset: 3px; border-radius: 4px; }
+</style>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      Prive Exchange <small>Dossier</small>
+    </div>
+    <nav class="nav-links">
+      <a href="#dossier">Documents</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#timeline">Delivery</a>
+      <a href="#decisions">Open decisions</a>
+      <button id="themeBtn" class="util" type="button" aria-label="Toggle colour theme">◐ Theme</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-meta">
+        <span class="chip">Phase&nbsp;<b>1 · MVP</b></span>
+        <span class="chip">Target&nbsp;<b>3–4 months</b></span>
+        <span class="chip">Stack&nbsp;<b>spec-aligned</b></span>
+        <span class="chip">Status&nbsp;<b>pre-implementation</b></span>
+      </div>
+      <h1 class="title">A blockchain carbon exchange, specified for the <span class="b">market</span> and the <span class="g">planet</span>.</h1>
+      <p class="lede">Prive Exchange trades tokenised carbon credits with the reliability of a crypto exchange and the integrity of a public registry. This dossier turns the product vision into build-ready engineering: architecture, data models, API and contract interfaces, a threat model, and a costed Phase-1 plan.</p>
+      <p class="hero-sub">Technical planning artifacts — nine specifications, three supporting deliverables. No application code yet; this is the source of truth a team builds against.</p>
+
+      <div class="duality">
+        <div class="trust market">
+          <div class="q-label">Test one</div>
+          <h3>Can a trader trust the market?</h3>
+          <p>Exchange-grade matching, custody, and surveillance: a Rust order book at &lt;10&nbsp;ms, an append-only double-entry ledger, MPC custody with 95%+ cold storage, and real-time abuse detection.</p>
+        </div>
+        <div class="trust planet">
+          <div class="q-label">Test two</div>
+          <h3>Can the planet trust the credit?</h3>
+          <p>One token equals one registry-retired tonne — enforced in the contract. Full on-chain lifecycle from issuance to retirement, provenance anchored to IPFS, auditable by anyone in the public explorer.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- KPIs -->
+  <section id="scale">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">The dossier at a glance</span>
+        <h2>What has been specified</h2>
+        <p>Every figure below maps to a written artifact in the set — nothing here is aspirational marketing; it is the shape of the planning work already done.</p>
+      </div>
+      <div class="kpis reveal">
+        <div class="kpi accent-g"><div class="n" data-count="9">9</div><div class="k">specification documents</div></div>
+        <div class="kpi"><div class="n" data-count="7">7</div><div class="k">isolated database schemas</div></div>
+        <div class="kpi accent-b"><div class="n" data-count="22">22</div><div class="k">REST paths in OpenAPI&nbsp;3.1</div></div>
+        <div class="kpi"><div class="n" data-count="6">6</div><div class="k">core smart contracts</div></div>
+        <div class="kpi accent-g"><div class="n" data-count="9">9</div><div class="k">architecture decision records</div></div>
+        <div class="kpi accent-b"><div class="n">10<span class="u">k/s</span></div><div class="k">matching-engine target</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DOSSIER -->
+  <section id="dossier">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">The document set</span>
+        <h2>Nine specifications, three supporting artifacts</h2>
+        <p>An ordered set — each document answers one question, and later documents build on earlier decisions. Filenames are shown for the engineering team; the pages read top-to-bottom for a reviewer.</p>
+      </div>
+      <div class="dossier reveal">
+        <div class="doc"><span class="num">01</span><div class="body"><h4>Architecture &amp; Decision Records</h4><p>Service decomposition, data-flow narratives, and nine ADRs behind every major choice.</p><div class="path">docs/01-architecture.md</div></div></div>
+        <div class="doc"><span class="num">02</span><div class="body"><h4>Data Model</h4><p>Production PostgreSQL DDL across seven schemas, plus TimescaleDB candles and a Redis map.</p><div class="path">docs/02-data-model.md</div></div></div>
+        <div class="doc"><span class="num">03</span><div class="body"><h4>API Contracts</h4><p>REST endpoints, WebSocket channels, and the public GraphQL explorer schema.</p><div class="path">docs/03-api-contracts.md</div></div></div>
+        <div class="doc"><span class="num">04</span><div class="body"><h4>Smart Contracts</h4><p>Solidity interfaces for issuance, settlement, retirement, and audit anchoring.</p><div class="path">docs/04-smart-contracts.md</div></div></div>
+        <div class="doc"><span class="num">05</span><div class="body"><h4>Security &amp; Compliance</h4><p>Custody, AppSec, AML/KYC, surveillance, carbon integrity, and release gates.</p><div class="path">docs/05-security-compliance.md</div></div></div>
+        <div class="doc"><span class="num">06</span><div class="body"><h4>Roadmap &amp; Sprints</h4><p>Sprint 0–7 for Phase 1 with a dependency map and audit-gated mainnet.</p><div class="path">docs/06-roadmap-sprints.md</div></div></div>
+        <div class="doc"><span class="num">07</span><div class="body"><h4>Threat Model</h4><p>STRIDE across six trust boundaries with mitigations and residual risk.</p><div class="path">docs/07-threat-model.md</div></div></div>
+        <div class="doc"><span class="num">08</span><div class="body"><h4>Monorepo Skeleton</h4><p>Exact folder and package layout for Sprint 0, and the boundaries it enforces.</p><div class="path">docs/08-monorepo-skeleton.md</div></div></div>
+        <div class="doc"><span class="num">09</span><div class="body"><h4>Admin Console UX</h4><p>Screen-by-screen spec for the mission-control panel — the densest surface.</p><div class="path">docs/09-admin-ux-spec.md</div></div></div>
+        <div class="doc aux"><span class="num">↳</span><div class="body"><h4>ERD Diagrams</h4><p>Mermaid entity-relationship diagrams for every schema.</p><div class="path">docs/diagrams/data-model-erd.md</div></div></div>
+        <div class="doc aux"><span class="num">↳</span><div class="body"><h4>Sequence Flows</h4><p>The money- and carbon-critical flows drawn end to end.</p><div class="path">docs/diagrams/sequence-flows.md</div></div></div>
+        <div class="doc aux"><span class="num">↳</span><div class="body"><h4>OpenAPI 3.1 Spec</h4><p>Machine-readable REST contract — mock servers, codegen, contract tests.</p><div class="path">api/openapi.yaml</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section id="architecture">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">The central decision</span>
+        <h2>A hybrid exchange: fast where it must be, permanent where it counts</h2>
+        <p>Order matching runs off-chain for millisecond latency; issuance, settlement, and retirement land on-chain for auditability. A continuous reconciliation job proves the two always agree.</p>
+      </div>
+      <div class="split reveal">
+        <div class="side off">
+          <div class="tag">Off-chain · source of truth for balances</div>
+          <h3>Latency &amp; matching</h3>
+          <p class="why">Where a trader's experience is decided.</p>
+          <ul>
+            <li>Rust order book, price-time priority, &lt;10&nbsp;ms match</li>
+            <li>Event-sourced on Kafka — deterministic replay on restart</li>
+            <li>Double-entry ledger with holds placed before every match</li>
+            <li>Live order book, candles, and depth over WebSocket</li>
+          </ul>
+        </div>
+        <div class="seam" aria-hidden="true"><span class="badge">Merkle-batched settlement</span></div>
+        <div class="side on">
+          <div class="tag">On-chain · source of truth for existence</div>
+          <h3>Issuance &amp; finality</h3>
+          <p class="why">Where the planet's trust is decided.</p>
+          <ul>
+            <li>ERC-1155 credit batches — one token id per project-vintage</li>
+            <li>Mint blocked unless the registry tonne was retired at source</li>
+            <li>Retirement burns the credit and issues a certificate NFT</li>
+            <li>Every credit's lifecycle public in the Transparency Explorer</li>
+          </ul>
+        </div>
+      </div>
+      <div class="arch-foot reveal">
+        <span class="chip">Chain&nbsp;<b>Polygon PoS / zkEVM</b></span>
+        <span class="chip">Token&nbsp;<b>ERC-1155</b></span>
+        <span class="chip">Custody&nbsp;<b>MPC · 95%+ cold</b></span>
+        <span class="chip">Uptime target&nbsp;<b>99.95%</b></span>
+        <span class="chip">Double-counting&nbsp;<b>zero — release-blocking</b></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCOPE -->
+  <section id="scope-sec">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">Phase 1 boundary</span>
+        <h2>What ships first — and what is deliberately deferred</h2>
+        <p>The MVP is specified in build-ready detail. Later phases are seamed at the interface level so Phase 1 never paints us into a corner.</p>
+      </div>
+      <div class="scope reveal">
+        <div class="scope-col in">
+          <h3><span class="dot"></span>In Phase 1 (MVP)</h3>
+          <ul>
+            <li>Dual buyer onboarding — individual and corporate, tiered KYC / KYB</li>
+            <li>Admin-minted tokenisation of pre-verified credits</li>
+            <li>Spot trading on 3–5 pairs with live charts and order book</li>
+            <li>Basic mining — verified steps and referrals</li>
+            <li>On-chain retirement with certificate NFT and PDF</li>
+            <li>Admin core and the public Transparency Explorer</li>
+          </ul>
+        </div>
+        <div class="scope-col later">
+          <h3><span class="dot"></span>Deferred to Phase 2 &amp; 3</h3>
+          <ul>
+            <li>Self-serve seller portal and verification pipeline</li>
+            <li>Auctions, storefronts, and the corporate OTC desk</li>
+            <li>Advanced order types — OCO, iceberg, TWAP, recurring buy</li>
+            <li>MRV oracles and streaming credit issuance</li>
+            <li>Fiat on / off-ramp and mobile apps</li>
+            <li>Forward contracts, hybrid AMM, governance token</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section id="timeline">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">Delivery plan</span>
+        <h2>Eight two-week sprints to a demonstrable MVP</h2>
+        <p>Sequenced by dependency, not optimism. Mainnet launch is gated by two independent audits and a bug bounty — an audit-gated date, never a calendar one.</p>
+      </div>
+      <div class="timeline reveal">
+        <div class="tl-row"><div class="tl-s">S0</div><div class="tl-body"><h4>Foundations</h4><p>Monorepo, infrastructure, CI/CD, contracts on the Amoy testnet — and the four open decisions resolved.</p></div></div>
+        <div class="tl-row"><div class="tl-s">S1</div><div class="tl-body"><h4>Identity &amp; KYC</h4><p>Dual-track onboarding, tiered verification, RBAC, and organisation membership.</p></div></div>
+        <div class="tl-row"><div class="tl-s">S2</div><div class="tl-body"><h4>Ledger &amp; wallet</h4><p>Double-entry engine, holds, deposits and withdrawals with allowlist and 24-hour new-address delay.</p></div></div>
+        <div class="tl-row"><div class="tl-s">S3</div><div class="tl-body"><h4>Matching engine</h4><p>In-memory order book, Kafka event log, market configuration, deterministic crash-replay.</p></div></div>
+        <div class="tl-row"><div class="tl-s">S4</div><div class="tl-body"><h4>Trading API &amp; market data</h4><p>Order lifecycle, portfolio, OHLCV candles, and sub-100&nbsp;ms WebSocket fan-out.</p></div></div>
+        <div class="tl-row"><div class="tl-s">S5</div><div class="tl-body"><h4>Tokenisation, settlement &amp; retirement</h4><p>Admin mint, Merkle-batched settlement, certificate NFTs, and the reconciliation safety net.</p></div></div>
+        <div class="tl-row"><div class="tl-s">S6</div><div class="tl-body"><h4>Mining &amp; admin core</h4><p>Proof-of-green-action with anti-fraud, and the hardware-key-gated mission-control console.</p></div></div>
+        <div class="tl-row"><div class="tl-s">S7</div><div class="tl-body"><h4>Explorer &amp; hardening</h4><p>Transparency Explorer, i18n and accessibility, load test, pen test, and the security game day.</p></div></div>
+        <div class="tl-row gate"><div class="tl-s">M5</div><div class="tl-body"><h4>Mainnet — audit-gated</h4><p>Two independent contract audits and a public bug bounty complete, plus legal sign-off per jurisdiction. Not a fixed sprint by design.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DECISIONS -->
+  <section id="decisions">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">Needs a human</span>
+        <h2>Four decisions that block Sprint 0</h2>
+      </div>
+      <div class="callout reveal"><b>These are product and legal calls, not engineering ones.</b> Each reshapes a specific module — resolving them early is the cheapest they will ever be. They are flagged in every affected document, not buried.</div>
+      <div class="decisions reveal">
+        <div class="decision"><div class="qn">Q1</div><h4>Launch jurisdiction(s)</h4><p>Determines KYC tiers, geo-gating, and whether a tokenised credit is a commodity, a security, or an environmental instrument.</p></div>
+        <div class="decision"><div class="qn">Q2</div><h4>Fiat at MVP, or not</h4><p>Crypto-settled only for Phase 1, or a payment on-ramp on day one — it changes the ledger, the payments API, and scope.</p></div>
+        <div class="decision"><div class="qn">Q3</div><h4>Custody model</h4><p>Managed Fireblocks-class MPC for speed, or self-hosted MPC for control — it drives mint authority and key management.</p></div>
+        <div class="decision"><div class="qn">Q4</div><h4>Registry integration reality</h4><p>Admin-attested registry serials at MVP with automated Verra / Gold Standard cross-check in Phase 2 — or block on API access now.</p></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot-grid">
+    <div>
+      <p><b style="color:var(--ink)">Prive Exchange — Engineering Dossier.</b> A translation of the product vision into buildable specifications. Treat carbon integrity and exchange-grade reliability as equal, first-class requirements.</p>
+      <p class="principle">Every feature answers both questions — or it gets redesigned.</p>
+    </div>
+    <div class="stamp">
+      PLANNING · PRE-IMPLEMENTATION<br>
+      9 SPECS · 3 ARTIFACTS<br>
+      2026
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    // theme toggle — cycles auto → light → dark, overriding the media query
+    var root = document.documentElement, btn = document.getElementById('themeBtn');
+    btn.addEventListener('click', function () {
+      var cur = root.getAttribute('data-theme');
+      var next = cur === 'light' ? 'dark' : 'light';
+      root.setAttribute('data-theme', next);
+    });
+
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // scroll reveal
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+
+    // gentle count-up for integer KPIs only
+    if (!reduce) {
+      var counted = false;
+      var kpiIO = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting && !counted) {
+            counted = true;
+            document.querySelectorAll('.n[data-count]').forEach(function (el) {
+              var target = parseInt(el.getAttribute('data-count'), 10), t0 = null;
+              function step(ts) {
+                if (!t0) t0 = ts;
+                var p = Math.min((ts - t0) / 900, 1);
+                el.textContent = Math.round(p * target * (2 - p)); // easeOut
+                if (p < 1) requestAnimationFrame(step);
+              }
+              requestAnimationFrame(step);
+            });
+          }
+        });
+      }, { threshold: 0.4 });
+      var strip = document.querySelector('.kpis');
+      if (strip) kpiIO.observe(strip);
+    }
+  })();
+</script>

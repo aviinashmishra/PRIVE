@@ -1,0 +1,808 @@
+openapi: 3.1.0
+info:
+  title: Prive Exchange API
+  version: 0.1.0-phase1
+  description: >
+    Phase-1 (MVP) REST surface for Prive Exchange — a hybrid carbon-credit exchange.
+    Formal companion to docs/03-api-contracts.md. Money values are decimal STRINGS, never
+    numbers. All money-moving POSTs require an Idempotency-Key header. WebSocket and GraphQL
+    surfaces are specified separately (see docs/03).
+  contact:
+    name: Prive Exchange Engineering
+  license:
+    name: Proprietary
+servers:
+  - url: https://api.priveexchange.com/v1
+    description: Production
+  - url: https://api.staging.priveexchange.com/v1
+    description: Staging (Polygon Amoy testnet)
+  - url: http://localhost:8080/v1
+    description: Local
+
+tags:
+  - name: Auth
+  - name: Account
+  - name: Wallet
+  - name: MarketData
+  - name: Trading
+  - name: Retirement
+  - name: Mining
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ---------------------------------------------------------------- Auth
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register an individual or company account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RegisterResponse' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Password or SSO login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Tokens issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/wallet/challenge:
+    post:
+      tags: [Auth]
+      summary: Get a SIWE nonce for wallet login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [address]
+              properties:
+                address: { type: string, example: '0xabc...' }
+      responses:
+        '200':
+          description: Challenge issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nonce: { type: string }
+                  message: { type: string, description: SIWE message to sign }
+
+  /auth/wallet/verify:
+    post:
+      tags: [Auth]
+      summary: Verify a signed SIWE message
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [address, signature]
+              properties:
+                address: { type: string }
+                signature: { type: string }
+      responses:
+        '200':
+          description: Tokens issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate access token
+      security:
+        - refreshAuth: []
+      responses:
+        '200':
+          description: New access token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+
+  # ---------------------------------------------------------------- Account
+  /me:
+    get:
+      tags: [Account]
+      summary: Current user, active account, and tier
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /kyc/cases:
+    post:
+      tags: [Account]
+      summary: Start a KYC/KYB case for a target tier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_tier]
+              properties:
+                target_tier: { $ref: '#/components/schemas/KycTier' }
+      responses:
+        '201':
+          description: Case created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KycCase' }
+
+  /kyc/cases/{id}:
+    get:
+      tags: [Account]
+      summary: KYC case status
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KycCase' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------- Wallet
+  /wallet/balances:
+    get:
+      tags: [Wallet]
+      summary: All asset balances (posted, held, available)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Balance' }
+
+  /wallet/withdrawals:
+    post:
+      tags: [Wallet]
+      summary: Request a withdrawal (allowlist + 24h new-address delay enforced)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WithdrawalRequest' }
+      responses:
+        '202':
+          description: Accepted (may be held 24h for a new address)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Withdrawal' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+
+  # ---------------------------------------------------------------- Market data (public)
+  /markets:
+    get:
+      tags: [MarketData]
+      summary: List all markets
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MarketSummary' }
+
+  /markets/{symbol}/orderbook:
+    get:
+      tags: [MarketData]
+      summary: Order-book snapshot
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PathSymbol'
+        - name: depth
+          in: query
+          schema: { type: integer, default: 50, maximum: 500 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderBook' }
+
+  /markets/{symbol}/candles:
+    get:
+      tags: [MarketData]
+      summary: OHLCV candles
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PathSymbol'
+        - name: interval
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ['1m','5m','15m','1h','4h','1d','1w']
+        - name: from
+          in: query
+          schema: { type: integer, description: unix seconds }
+        - name: to
+          in: query
+          schema: { type: integer, description: unix seconds }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 200, maximum: 1000 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Candle' }
+
+  /markets/{symbol}/trades:
+    get:
+      tags: [MarketData]
+      summary: Recent trades tape
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PathSymbol'
+        - name: limit
+          in: query
+          schema: { type: integer, default: 100, maximum: 500 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PublicTrade' }
+
+  # ---------------------------------------------------------------- Trading (private)
+  /orders:
+    post:
+      tags: [Trading]
+      summary: Place an order
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlaceOrderRequest' }
+      responses:
+        '201':
+          description: Order accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Market halted or self-trade prevented
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+    get:
+      tags: [Trading]
+      summary: List own orders
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/OrderStatus' }
+        - name: market
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Order' }
+                  next_cursor: { type: [string, 'null'] }
+
+  /orders/{id}:
+    get:
+      tags: [Trading]
+      summary: Order detail
+      parameters: [ { $ref: '#/components/parameters/PathId' } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Trading]
+      summary: Cancel an order
+      parameters: [ { $ref: '#/components/parameters/PathId' } ]
+      responses:
+        '200':
+          description: Cancelled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /portfolio:
+    get:
+      tags: [Trading]
+      summary: Holdings, cost basis, unrealized P&L, CO2 offset potential
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Portfolio' }
+
+  # ---------------------------------------------------------------- Retirement
+  /retirements:
+    post:
+      tags: [Retirement]
+      summary: Retire (burn) credits for offsetting
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [batch_id, quantity]
+              properties:
+                batch_id: { type: string, format: uuid }
+                quantity: { $ref: '#/components/schemas/Decimal' }
+                beneficiary: { type: string, example: 'Acme Steel Ltd FY2026' }
+      responses:
+        '202':
+          description: Retirement accepted (on-chain confirmation follows)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Retirement' }
+    get:
+      tags: [Retirement]
+      summary: Own retirement history
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Retirement' }
+
+  /retirements/{id}:
+    get:
+      tags: [Retirement]
+      summary: Retirement status + certificate
+      parameters: [ { $ref: '#/components/parameters/PathId' } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Retirement' }
+
+  # ---------------------------------------------------------------- Mining
+  /mining/summary:
+    get:
+      tags: [Mining]
+      summary: Points, CO2-saved, streak, rank
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MiningSummary' }
+
+  /mining/actions:
+    post:
+      tags: [Mining]
+      summary: Submit a green action for verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MiningActionRequest' }
+      responses:
+        '202':
+          description: Submitted (may be async-verified)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MiningAction' }
+
+  /mining/convert:
+    post:
+      tags: [Mining]
+      summary: Convert points to fractional credits
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points]
+              properties:
+                points: { $ref: '#/components/schemas/Decimal' }
+      responses:
+        '200':
+          description: Converted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  credits_granted: { $ref: '#/components/schemas/Decimal' }
+                  rate: { $ref: '#/components/schemas/Decimal' }
+                  batch_id: { type: string, format: uuid }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    refreshAuth:
+      type: http
+      scheme: bearer
+      description: Refresh token (rotated on use)
+
+  parameters:
+    PathId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PathSymbol:
+      name: symbol
+      in: path
+      required: true
+      schema: { type: string, example: 'AMZN-RF25-USDT' }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
+      description: Required on all money-moving requests; replays return the original result.
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, default: 50, maximum: 200 }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Authenticated but not permitted (RBAC / tier / flags)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: State conflict (e.g. email already registered)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    UnprocessableEntity:
+      description: Validation failed (e.g. insufficient funds, tick/lot violation)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Decimal:
+      type: string
+      pattern: '^-?[0-9]+(\.[0-9]+)?$'
+      description: Decimal number as a string to avoid float loss.
+      example: '12.500000'
+
+    Problem:
+      type: object
+      description: RFC-7807 problem+json.
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        trace_id: { type: string }
+
+    KycTier:
+      type: string
+      enum: [tier0, tier1, tier2]
+
+    AccountType:
+      type: string
+      enum: [individual, company]
+
+    RegisterRequest:
+      type: object
+      required: [type]
+      properties:
+        type: { $ref: '#/components/schemas/AccountType' }
+        email: { type: string, format: email }
+        phone: { type: string }
+        password: { type: string, format: password, minLength: 12 }
+        sso_provider: { type: string, enum: [google, apple] }
+        company:
+          type: object
+          properties:
+            legal_name: { type: string }
+            registration_number: { type: string }
+            incorporation_country: { type: string, minLength: 2, maxLength: 2 }
+            industry_sector: { type: string }
+
+    RegisterResponse:
+      type: object
+      properties:
+        account_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        kyc_tier: { $ref: '#/components/schemas/KycTier' }
+        next: { type: string }
+
+    LoginRequest:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        phone: { type: string }
+        password: { type: string, format: password }
+
+    TokenPair:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        expires_in: { type: integer, example: 900 }
+        token_type: { type: string, example: Bearer }
+
+    Me:
+      type: object
+      properties:
+        user_id: { type: string, format: uuid }
+        active_account_id: { type: string, format: uuid }
+        account_type: { $ref: '#/components/schemas/AccountType' }
+        kyc_tier: { $ref: '#/components/schemas/KycTier' }
+        roles: { type: array, items: { type: string } }
+
+    KycCase:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        target_tier: { $ref: '#/components/schemas/KycTier' }
+        status: { type: string, enum: [none, pending, approved, rejected, expired] }
+        provider: { type: string }
+        reject_reason: { type: [string, 'null'] }
+
+    Balance:
+      type: object
+      properties:
+        asset: { type: string, example: USDT }
+        posted: { $ref: '#/components/schemas/Decimal' }
+        held: { $ref: '#/components/schemas/Decimal' }
+        available: { $ref: '#/components/schemas/Decimal' }
+
+    WithdrawalRequest:
+      type: object
+      required: [asset, amount, address]
+      properties:
+        asset: { type: string }
+        amount: { $ref: '#/components/schemas/Decimal' }
+        address: { type: string }
+        network: { type: string, example: polygon }
+
+    Withdrawal:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [pending, confirmed, failed, held_24h] }
+        available_at: { type: [string, 'null'], format: date-time }
+
+    MarketSummary:
+      type: object
+      properties:
+        symbol: { type: string, example: 'AMZN-RF25/USDT' }
+        last: { $ref: '#/components/schemas/Decimal' }
+        change_24h_pct: { $ref: '#/components/schemas/Decimal' }
+        volume_24h: { $ref: '#/components/schemas/Decimal' }
+        status: { type: string, enum: [active, halted, delisted] }
+
+    OrderBook:
+      type: object
+      properties:
+        seq: { type: integer }
+        bids:
+          type: array
+          items:
+            type: array
+            prefixItems:
+              - { $ref: '#/components/schemas/Decimal' }
+              - { $ref: '#/components/schemas/Decimal' }
+            description: '[price, size]'
+        asks:
+          type: array
+          items:
+            type: array
+            prefixItems:
+              - { $ref: '#/components/schemas/Decimal' }
+              - { $ref: '#/components/schemas/Decimal' }
+
+    Candle:
+      type: object
+      properties:
+        t: { type: integer, description: bucket start, unix seconds }
+        o: { $ref: '#/components/schemas/Decimal' }
+        h: { $ref: '#/components/schemas/Decimal' }
+        l: { $ref: '#/components/schemas/Decimal' }
+        c: { $ref: '#/components/schemas/Decimal' }
+        v: { $ref: '#/components/schemas/Decimal' }
+
+    PublicTrade:
+      type: object
+      properties:
+        price: { $ref: '#/components/schemas/Decimal' }
+        size: { $ref: '#/components/schemas/Decimal' }
+        side: { type: string, enum: [buy, sell] }
+        ts: { type: string, format: date-time }
+
+    OrderSide:
+      type: string
+      enum: [buy, sell]
+    OrderType:
+      type: string
+      enum: [market, limit, stop_limit, stop_market]
+      description: Phase-1 set. oco/iceberg/twac/recurring are Phase 2 (501 until enabled).
+    Tif:
+      type: string
+      enum: [gtc, ioc, fok]
+    OrderStatus:
+      type: string
+      enum: [open, partial, filled, cancelled, rejected]
+
+    PlaceOrderRequest:
+      type: object
+      required: [market, side, type, quantity]
+      properties:
+        market: { type: string, example: 'AMZN-RF25/USDT' }
+        side: { $ref: '#/components/schemas/OrderSide' }
+        type: { $ref: '#/components/schemas/OrderType' }
+        tif: { $ref: '#/components/schemas/Tif' }
+        price: { $ref: '#/components/schemas/Decimal' }
+        stop_price: { $ref: '#/components/schemas/Decimal' }
+        quantity: { $ref: '#/components/schemas/Decimal' }
+
+    Order:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        market: { type: string }
+        side: { $ref: '#/components/schemas/OrderSide' }
+        type: { $ref: '#/components/schemas/OrderType' }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        price: { $ref: '#/components/schemas/Decimal' }
+        quantity: { $ref: '#/components/schemas/Decimal' }
+        filled_qty: { $ref: '#/components/schemas/Decimal' }
+        avg_fill_price: { type: [string, 'null'] }
+        hold_id: { type: [string, 'null'], format: uuid }
+        fee_estimate: { $ref: '#/components/schemas/Decimal' }
+        co2_tonnes: { $ref: '#/components/schemas/Decimal' }
+        reject_reason: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+
+    Portfolio:
+      type: object
+      properties:
+        total_co2_offset_potential: { $ref: '#/components/schemas/Decimal' }
+        holdings:
+          type: array
+          items:
+            type: object
+            properties:
+              batch_id: { type: string, format: uuid }
+              symbol: { type: string }
+              quantity: { $ref: '#/components/schemas/Decimal' }
+              cost_basis: { $ref: '#/components/schemas/Decimal' }
+              market_value: { $ref: '#/components/schemas/Decimal' }
+              unrealized_pnl: { $ref: '#/components/schemas/Decimal' }
+              project_type: { type: string }
+
+    Retirement:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        quantity: { $ref: '#/components/schemas/Decimal' }
+        status: { type: string, enum: [pending, confirmed] }
+        certificate_token_id: { type: [string, 'null'] }
+        certificate_ipfs_cid: { type: [string, 'null'] }
+        tx_hash: { type: [string, 'null'] }
+        explorer_url: { type: [string, 'null'], format: uri }
+
+    MiningSummary:
+      type: object
+      properties:
+        points: { $ref: '#/components/schemas/Decimal' }
+        co2_saved_week: { $ref: '#/components/schemas/Decimal' }
+        streak_days: { type: integer }
+        rank_city: { type: [integer, 'null'] }
+
+    MiningActionType:
+      type: string
+      enum: [steps, cycling, utility_bill, green_purchase, tree_plant, referral, streak]
+
+    MiningActionRequest:
+      type: object
+      required: [type, payload]
+      properties:
+        type: { $ref: '#/components/schemas/MiningActionType' }
+        payload:
+          type: object
+          additionalProperties: true
+          description: e.g. { steps, gps_track, receipt_ipfs_cid }
+
+    MiningAction:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/MiningActionType' }
+        status: { type: string, enum: [submitted, verifying, approved, rejected, flagged] }
+        points_awarded: { $ref: '#/components/schemas/Decimal' }

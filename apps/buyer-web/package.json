@@ -1,0 +1,42 @@
+{
+  "name": "@prive/buyer-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "db:migrate": "node --env-file=.env.local db/migrate.mjs",
+    "db:seed": "node --env-file=.env.local db/seed.mjs",
+    "db:setup": "npm run db:migrate && npm run db:seed"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "@node-rs/argon2": "^2.0.2",
+    "clsx": "2.1.1",
+    "drizzle-orm": "^0.36.4",
+    "ethers": "^6.17.0",
+    "jose": "^5.9.6",
+    "lightweight-charts": "4.2.0",
+    "lucide-react": "0.451.0",
+    "next": "14.2.15",
+    "nodemailer": "^6.9.16",
+    "pg": "^8.13.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "zustand": "4.5.5"
+  },
+  "devDependencies": {
+    "@types/node": "20.16.10",
+    "@types/nodemailer": "^6.4.16",
+    "@types/pg": "^8.11.10",
+    "@types/react": "18.3.11",
+    "@types/react-dom": "18.3.0",
+    "autoprefixer": "10.4.20",
+    "drizzle-kit": "^0.28.1",
+    "postcss": "8.4.47",
+    "tailwindcss": "3.4.13",
+    "typescript": "5.6.2"
+  }
+}

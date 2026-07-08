@@ -1,0 +1,86 @@
+# Prive Exchange — full local production stack.
+#   docker compose up --build
+#   → app     http://localhost:3000
+#   → mailbox http://localhost:8025   (Mailpit — receives all auth emails)
+#   → db      postgres on localhost:5432 (prive/prive)
+#
+# Configuration comes from a root `.env` file (copy .env.example). Every variable
+# has a dev-safe default so `docker compose up` works out of the box.
+
+name: prive-exchange
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: prive
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-prive_dev_password}
+      POSTGRES_DB: prive
+    volumes:
+      - prive-pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prive -d prive"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  # Local SMTP sink with a web inbox — verification codes and reset links land here.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+    restart: unless-stopped
+
+  # One-shot: applies db/migrations/*.sql then seeds accounts, users and markets.
+  migrate:
+    build:
+      context: ./apps/buyer-web
+      target: migrate
+    environment:
+      DATABASE_URL: postgres://prive:${POSTGRES_PASSWORD:-prive_dev_password}@db:5432/prive
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_TRADER_PASSWORD: ${SEED_TRADER_PASSWORD:-}
+      SEED_SELLER_PASSWORD: ${SEED_SELLER_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build:
+      context: ./apps/buyer-web
+      target: runner
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgres://prive:${POSTGRES_PASSWORD:-prive_dev_password}@db:5432/prive
+      # Also re-run idempotent migrations on boot — same path Render uses (render.yaml).
+      RUN_MIGRATIONS: "true"
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_TRADER_PASSWORD: ${SEED_TRADER_PASSWORD:-}
+      SEED_SELLER_PASSWORD: ${SEED_SELLER_PASSWORD:-}
+      AUTH_SECRET: ${AUTH_SECRET:-dev-only-compose-secret-change-in-production}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      EMAIL_FROM: "Prive Exchange <no-reply@prive.exchange>"
+      # Optional: point at a chain RPC (e.g. a host Hardhat node) for the on-chain panel.
+      CHAIN_RPC_URL: ${CHAIN_RPC_URL:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  prive-pgdata:

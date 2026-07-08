@@ -1,0 +1,19 @@
+# dependencies & build output
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+
+# secrets — never commit env files (templates are whitelisted)
+.env
+.env.*
+!.env.example
+
+# hardhat (contracts/)
+artifacts/
+cache/
+typechain-types/
+
+# misc
+.DS_Store
+npm-debug.log*
