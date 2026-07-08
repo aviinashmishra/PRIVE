@@ -28,20 +28,21 @@ services:
       # it is used in emailed password-reset links.
       - key: APP_URL
         sync: false
-      # SMTP for verification/reset emails (e.g. Resend, Postmark, SES, Brevo).
-      # Leave unset to print emails to the service logs instead.
+      # SMTP for verification/reset emails — Gmail via app password.
+      # Only SMTP_PASS is entered in the Render dashboard (never committed).
+      # To switch providers (Resend, Postmark, SES, Brevo), change these values.
       - key: SMTP_HOST
-        sync: false
+        value: smtp.gmail.com
       - key: SMTP_PORT
-        sync: false
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
       - key: SMTP_USER
-        sync: false
+        value: avimishra8354@gmail.com
       - key: SMTP_PASS
         sync: false
-      - key: SMTP_SECURE
-        sync: false
       - key: EMAIL_FROM
-        sync: false
+        value: Prive Exchange <avimishra8354@gmail.com>
       # Override the seeded demo-user passwords in production.
       - key: SEED_ADMIN_PASSWORD
         sync: false

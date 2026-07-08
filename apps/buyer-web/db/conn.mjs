@@ -39,6 +39,7 @@ export async function getConnWithRetry(url, attempts = 15, delayMs = 2000) {
     try {
       return await getConn(url);
     } catch (e) {
+      if (e?.code === "ERR_MODULE_NOT_FOUND") throw e; // driver missing — retrying can't help
       lastErr = e;
       console.log(`… database not ready (attempt ${i + 1}/${attempts}), retrying`);
       await new Promise((r) => setTimeout(r, delayMs));
