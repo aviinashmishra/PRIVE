@@ -5,20 +5,25 @@ import nodemailer, { type Transporter } from "nodemailer";
 import { appUrl } from "./config";
 
 let transporter: Transporter | null | undefined;
+let verified = false;
 
 function getTransport(): Transporter | null {
   if (transporter !== undefined) return transporter;
   const host = process.env.SMTP_HOST;
   if (!host) {
     transporter = null;
+    console.warn("✉ SMTP_HOST is not set — auth emails will be printed to these logs instead of sent.");
     return null;
+  }
+  if (process.env.SMTP_USER && !process.env.SMTP_PASS) {
+    console.warn("✉ SMTP_USER is set but SMTP_PASS is EMPTY — sends will fail until SMTP_PASS is configured.");
   }
   transporter = nodemailer.createTransport({
     host,
     port: Number(process.env.SMTP_PORT || 587),
     secure: process.env.SMTP_SECURE === "true",
     auth: process.env.SMTP_USER
-      ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS || "" }
+      ? { user: process.env.SMTP_USER, pass: (process.env.SMTP_PASS || "").replace(/\s+/g, "") }
       : undefined,
   });
   return transporter;
@@ -26,21 +31,39 @@ function getTransport(): Transporter | null {
 
 const FROM = () => process.env.EMAIL_FROM || "Prive Exchange <no-reply@prive.exchange>";
 
+function logEmailToConsole(reason: string, to: string, subject: string, text: string): void {
+  console.log(
+    [
+      `┌─ 📧 Email (${reason}) ─`,
+      `│ To: ${to}`,
+      `│ Subject: ${subject}`,
+      ...text.split("\n").map((l) => `│ ${l}`),
+      "└────────────────────────────────────────────────────────",
+    ].join("\n"),
+  );
+}
+
 async function send(to: string, subject: string, text: string, html: string): Promise<void> {
   const t = getTransport();
   if (!t) {
-    console.log(
-      [
-        "┌─ 📧 Email (SMTP not configured — printed to console) ─",
-        `│ To: ${to}`,
-        `│ Subject: ${subject}`,
-        ...text.split("\n").map((l) => `│ ${l}`),
-        "└────────────────────────────────────────────────────────",
-      ].join("\n"),
-    );
+    logEmailToConsole("SMTP not configured — printed to console", to, subject, text);
     return;
   }
-  await t.sendMail({ from: FROM(), to, subject, text, html });
+  try {
+    if (!verified) {
+      // one-time connection/credential check with a clear log line either way
+      await t.verify();
+      verified = true;
+      console.log(`✉ SMTP ready: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT || 587} as ${process.env.SMTP_USER || "(no auth)"}`);
+    }
+    await t.sendMail({ from: FROM(), to, subject, text, html });
+    console.log(`✉ Sent "${subject}" to ${to}`);
+  } catch (err) {
+    // Never lose the OTP: log the failure loudly AND print the message content so
+    // it can be recovered from the service logs while SMTP is being fixed.
+    console.error(`✉ SMTP SEND FAILED (${process.env.SMTP_HOST}): ${String(err)}`);
+    logEmailToConsole("SMTP send FAILED — content printed as fallback", to, subject, text);
+  }
 }
 
 function shell(title: string, bodyHtml: string): string {
