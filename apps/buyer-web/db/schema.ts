@@ -144,8 +144,44 @@ export const authTokens = pgTable(
   (t) => ({ byUser: index("auth_tokens_user_idx").on(t.userId, t.purpose, t.createdAt) }),
 );
 
+// ------------------------------ Support center ------------------------------
+
+export const tickets = pgTable(
+  "tickets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    email: text("email").notNull(),
+    name: text("name").notNull(),
+    category: text("category").notNull().default("general"),
+    subject: text("subject").notNull(),
+    status: text("status").notNull().default("open"), // open | in_progress | resolved
+    priority: text("priority").notNull().default("normal"), // low | normal | high | critical
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    byUser: index("tickets_user_idx").on(t.userId, t.createdAt),
+    byStatus: index("tickets_status_idx").on(t.status, t.updatedAt),
+  }),
+);
+
+export const ticketMessages = pgTable(
+  "ticket_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ticketId: uuid("ticket_id").notNull(),
+    authorRole: text("author_role").notNull().default("user"), // user | support
+    authorName: text("author_name").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({ byTicket: index("ticket_messages_ticket_idx").on(t.ticketId, t.createdAt) }),
+);
+
 export type UserRow = typeof users.$inferSelect;
 export type SessionRow = typeof sessions.$inferSelect;
+export type TicketRow = typeof tickets.$inferSelect;
 
 export type Retirement = typeof retirements.$inferSelect;
 export type NewRetirement = typeof retirements.$inferInsert;

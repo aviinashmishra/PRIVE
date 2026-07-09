@@ -12,6 +12,7 @@ import {
   Leaf,
   ArrowLeftRight,
   LifeBuoy,
+  Settings,
   Sparkles,
 } from "lucide-react";
 
@@ -67,9 +68,25 @@ export function Sidebar() {
             KYC Tier 2 active. Full trading, withdrawals & OTC unlocked.
           </p>
         </div>
-        <Link href="#" className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-soft hover:bg-mist hover:text-ink transition-all">
-          <LifeBuoy className="h-[18px] w-[18px] text-ink-faint" />
+        <Link
+          href="/support"
+          className={clsx(
+            "mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+            path === "/support" ? "bg-brand-600 text-white shadow-glow" : "text-ink-soft hover:bg-mist hover:text-ink",
+          )}
+        >
+          <LifeBuoy className={clsx("h-[18px] w-[18px]", path === "/support" ? "text-white" : "text-ink-faint")} />
           Support
+        </Link>
+        <Link
+          href="/settings"
+          className={clsx(
+            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+            path === "/settings" ? "bg-brand-600 text-white shadow-glow" : "text-ink-soft hover:bg-mist hover:text-ink",
+          )}
+        >
+          <Settings className={clsx("h-[18px] w-[18px]", path === "/settings" ? "text-white" : "text-ink-faint")} />
+          Settings
         </Link>
       </div>
     </aside>

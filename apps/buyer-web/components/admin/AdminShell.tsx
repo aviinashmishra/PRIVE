@@ -13,6 +13,7 @@ import {
   Landmark,
   ShieldHalf,
   KeyRound,
+  LifeBuoy,
 } from "lucide-react";
 
 const nav = [
@@ -21,6 +22,7 @@ const nav = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/surveillance", label: "Surveillance", icon: Radar },
   { href: "/admin/treasury", label: "Treasury", icon: Landmark },
+  { href: "/admin/support", label: "Support desk", icon: LifeBuoy },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {

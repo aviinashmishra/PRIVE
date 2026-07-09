@@ -178,6 +178,15 @@ export async function updatePassword(userId: string, passwordHash: string): Prom
   }
 }
 
+export async function updateDisplayName(userId: string, displayName: string): Promise<void> {
+  if (hasDb && db) {
+    await db.update(users).set({ displayName, updatedAt: new Date() }).where(eq(users.id, userId));
+    return;
+  }
+  const u = memUsers.find((x) => x.id === userId);
+  if (u) u.displayName = displayName;
+}
+
 export async function recordLoginFailure(user: AuthUser): Promise<void> {
   const failures = user.failedAttempts + 1;
   const lockedUntil = failures >= MAX_LOGIN_FAILURES ? new Date(Date.now() + LOCKOUT_MS) : null;
@@ -247,6 +256,34 @@ export async function isSessionActive(sid: string): Promise<boolean> {
   const rec = memSessions.get(sid);
   if (!rec) return true;
   return !rec.revokedAt && rec.expiresAt.getTime() > Date.now();
+}
+
+export interface SessionInfo {
+  id: string;
+  ip: string | null;
+  userAgent: string | null;
+  createdAt: Date;
+  expiresAt: Date;
+}
+
+export async function listUserSessions(userId: string): Promise<SessionInfo[]> {
+  if (hasDb && db) {
+    const rows = await db
+      .select()
+      .from(sessions)
+      .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt), gt(sessions.expiresAt, dsql`now()`)))
+      .orderBy(sessions.createdAt);
+    return rows.map((r) => ({
+      id: r.id,
+      ip: r.ip,
+      userAgent: r.userAgent,
+      createdAt: r.createdAt,
+      expiresAt: r.expiresAt,
+    }));
+  }
+  return Array.from(memSessions.values())
+    .filter((s) => s.userId === userId && !s.revokedAt && s.expiresAt.getTime() > Date.now())
+    .map((s) => ({ id: s.id, ip: null, userAgent: null, createdAt: new Date(), expiresAt: s.expiresAt }));
 }
 
 export async function revokeSession(sid: string): Promise<void> {

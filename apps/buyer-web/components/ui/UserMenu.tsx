@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { clsx } from "@/lib/format";
-import { LogOut, UserRound } from "lucide-react";
+import { LogOut, Settings, UserRound } from "lucide-react";
 
 interface Me {
   email: string;
@@ -74,6 +75,19 @@ export function UserMenu({ dark = false }: { dark?: boolean }) {
               </span>
             )}
           </div>
+          {me?.role !== "seller" && (
+            <Link
+              href="/settings"
+              onClick={() => setOpen(false)}
+              className={clsx(
+                "w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+                dark ? "text-white/80 hover:bg-white/10" : "text-ink-soft hover:bg-mist",
+              )}
+            >
+              <Settings className="h-4 w-4 text-brand-500" />
+              Account settings
+            </Link>
+          )}
           <button
             onClick={signOut}
             className={clsx(

@@ -31,7 +31,9 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const isPublic =
-    PUBLIC_PAGES.has(pathname) || PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p));
+    PUBLIC_PAGES.has(pathname) ||
+    pathname.startsWith("/legal/") || // terms, privacy, cookies — public by nature
+    PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p));
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const claims = token ? await verifySessionJwt(token) : null;

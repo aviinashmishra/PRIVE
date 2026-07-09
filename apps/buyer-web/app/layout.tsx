@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, Fraunces, JetBrains_Mono } from "next/font/google";
+import { CookieConsent } from "@/components/ui/CookieConsent";
 import "./globals.css";
 
 const sans = Manrope({
@@ -32,7 +33,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <CookieConsent />
+      </body>
     </html>
   );
 }

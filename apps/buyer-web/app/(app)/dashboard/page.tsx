@@ -1,14 +1,31 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { StatCard } from "@/components/ui/StatCard";
 import { Sparkline } from "@/components/ui/Sparkline";
+import { InsightsPanel } from "@/components/app/InsightsPanel";
 import { Delta, TypePill, LiveDot } from "@/components/ui/bits";
 import { fmtUsd, fmtPrice, fmtCompact, fmtQty, timeAgo, clsx } from "@/lib/format";
 import { Wallet, Leaf, TrendingUp, Pickaxe, ArrowUpRight, ArrowRight, Flame } from "lucide-react";
 
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 5) return "Working late";
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function Dashboard() {
+  const [firstName, setFirstName] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setFirstName(j?.data?.name?.split(" ")[0] ?? null))
+      .catch(() => {});
+  }, []);
   const markets = useStore((s) => s.markets);
   const holdings = useStore((s) => s.holdings);
   const usd = useStore((s) => s.usd);
@@ -31,7 +48,10 @@ export default function Dashboard() {
       {/* greeting */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm text-ink-soft">Good afternoon, Oz — here&apos;s your desk.</p>
+          <p className="text-sm text-ink-soft">
+            {greeting()}
+            {firstName ? `, ${firstName}` : ""} — here&apos;s your desk.
+          </p>
           <div className="mt-1 flex items-center gap-3">
             <h2 className="font-display text-2xl font-semibold text-ink">Portfolio {fmtUsd(pv)}</h2>
             <Delta value={pnlPct} className="text-sm" />
@@ -98,6 +118,8 @@ export default function Dashboard() {
 
         {/* side column */}
         <div className="space-y-6">
+          <InsightsPanel />
+
           {/* top movers */}
           <div className="card p-6">
             <h3 className="font-semibold text-ink mb-4 flex items-center gap-2">
