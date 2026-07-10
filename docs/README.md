@@ -5,9 +5,10 @@ translates the product vision into buildable engineering specifications: archite
 decisions, data models, API contracts, smart-contract interfaces, security controls, and
 a Phase-1 sprint plan.
 
-> **Status:** Planning / pre-implementation. No application code has been written yet.
-> These documents are the source of truth a team builds against. Keep them versioned in
-> the repo and update them via PR as decisions change.
+> **Status:** Phase-1 implementation is **live** — see
+> [10-implementation-status.md](./10-implementation-status.md) for the audited map of what
+> is built, what is simulated, and what remains. These documents stay the source of truth;
+> update them via PR as decisions change.
 
 ## How to read this set
 
@@ -23,6 +24,7 @@ a Phase-1 sprint plan.
 | 07 | [07-threat-model.md](./07-threat-model.md) | What can go wrong, and how do we stop it? (STRIDE per boundary) |
 | 08 | [08-monorepo-skeleton.md](./08-monorepo-skeleton.md) | Where does the code live, and what boundaries does the layout enforce? |
 | 09 | [09-admin-ux-spec.md](./09-admin-ux-spec.md) | What does mission-control look like, screen by screen? |
+| 10 | [10-implementation-status.md](./10-implementation-status.md) | What of all this is actually built, verified, or still pending? |
 
 ### Supporting artifacts
 

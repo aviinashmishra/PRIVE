@@ -12,6 +12,7 @@ export function TradePanel({ symbol, pickedPrice }: { symbol: string; pickedPric
   const usd = useStore((s) => s.usd);
   const holdingQty = useStore((s) => s.holdingQty(symbol));
   const placeOrder = useStore((s) => s.placeOrder);
+  const linkRemoteOrder = useStore((s) => s.linkRemoteOrder);
 
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [type, setType] = useState<"limit" | "market">("limit");
@@ -44,8 +45,13 @@ export function TradePanel({ symbol, pickedPrice }: { symbol: string; pickedPric
     const res = placeOrder(m.pair, side, type, parseFloat(price) || 0, q);
     if (res.ok) {
       toast.success(res.message, res.filled ? `Fee ${fmtUsd(fee)} · CO₂ ${fmtQty(q)} t` : undefined);
-      // best-effort persist to the backend order history (Neon or in-memory)
-      void postOrder({ pair: m.pair, side, type, price: res.avgPrice ?? p, qty: q, status: res.filled ? "filled" : "open" });
+      // best-effort persist to the backend order history (Neon or in-memory);
+      // resting orders keep the backend id so a cancel propagates server-side too
+      void postOrder({ pair: m.pair, side, type, price: res.avgPrice ?? p, qty: q, status: res.filled ? "filled" : "open" }).then(
+        (remoteId) => {
+          if (remoteId && res.orderId) linkRemoteOrder(res.orderId, remoteId);
+        },
+      );
       setQty("");
     } else {
       toast.error("Order rejected", res.message);

@@ -1,29 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminStat } from "@/components/admin/AdminShell";
 import { toast } from "@/components/ui/Toast";
 import { fmtUsd, clsx } from "@/lib/format";
 import { Search, Snowflake, ShieldCheck, Users, Building2 } from "lucide-react";
 
 interface U {
-  id: string; name: string; type: "Individual" | "Company"; country: string;
-  tier: "Tier 0" | "Tier 1" | "Tier 2"; status: "active" | "frozen" | "pending"; vol: number;
+  id: string; name: string; email?: string; type: "Individual" | "Company"; country: string;
+  tier: string; status: "active" | "frozen" | "pending"; vol: number; role?: string;
 }
 
+// Registered platform users come from /api/admin/users (real DB rows); this seed
+// only illustrates the surrounding book of business in the demo.
 const SEED: U[] = [
-  { id: "u-1042", name: "Oz (Demo Trader)", type: "Individual", country: "🇮🇳 IN", tier: "Tier 2", status: "active", vol: 184000 },
   { id: "c-2201", name: "Acme Steel Ltd", type: "Company", country: "🇮🇳 IN", tier: "Tier 2", status: "active", vol: 4200000 },
   { id: "u-1088", name: "A. Mehta", type: "Individual", country: "🇮🇳 IN", tier: "Tier 1", status: "active", vol: 12400 },
-  { id: "c-2214", name: "Helios Grid Co", type: "Company", country: "🇨🇱 CL", tier: "Tier 2", status: "active", vol: 980000 },
   { id: "u-1120", name: "S. Haryanto", type: "Individual", country: "🇮🇩 ID", tier: "Tier 1", status: "pending", vol: 0 },
   { id: "u-1133", name: "L. Okoro", type: "Individual", country: "🇳🇬 NG", tier: "Tier 0", status: "frozen", vol: 640 },
-  { id: "c-2230", name: "Nordic Capture AS", type: "Company", country: "🇳🇴 NO", tier: "Tier 2", status: "active", vol: 320000 },
 ];
+
+function tierLabel(t: string): string {
+  return t.replace("tier", "Tier ");
+}
 
 export default function AdminUsers() {
   const [users, setUsers] = useState<U[]>(SEED);
+  const [registered, setRegistered] = useState(0);
   const [q, setQ] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/users", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j?.data?.length) return;
+        const real: U[] = j.data.map((u: Record<string, unknown>) => ({
+          id: String(u.id).slice(0, 8),
+          name: `${u.name}`,
+          email: `${u.email}`,
+          role: `${u.role}`,
+          type: u.accountType === "company" ? "Company" : "Individual",
+          country: `${u.country}`,
+          tier: tierLabel(`${u.kycTier}`),
+          status: u.locked ? "frozen" : u.verified ? "active" : "pending",
+          vol: Number(u.usdBalance) || 0,
+        }));
+        setRegistered(real.length);
+        setUsers([...real, ...SEED]);
+      })
+      .catch(() => {});
+  }, []);
 
   const toggleFreeze = (id: string) => {
     setUsers((prev) => prev.map((u) => {
@@ -39,7 +65,13 @@ export default function AdminUsers() {
     toast.success("KYC approved", `${u?.name} · tier upgraded`);
   };
 
-  const rows = users.filter((u) => !q || u.name.toLowerCase().includes(q.toLowerCase()) || u.id.includes(q));
+  const rows = users.filter(
+    (u) =>
+      !q ||
+      u.name.toLowerCase().includes(q.toLowerCase()) ||
+      u.id.includes(q) ||
+      (u.email ?? "").toLowerCase().includes(q.toLowerCase()),
+  );
   const companies = users.filter((u) => u.type === "Company").length;
   const pending = users.filter((u) => u.status === "pending").length;
 
@@ -51,10 +83,10 @@ export default function AdminUsers() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <AdminStat label="Total accounts" value="12,480" sub="+312 this week" tone="good" />
+        <AdminStat label="Registered users" value={String(registered || users.length)} sub="live from the users table" tone="good" />
         <AdminStat label="Companies (KYB)" value={String(companies)} sub="verified developers & buyers" />
-        <AdminStat label="Pending KYC" value={String(pending)} sub="in review queue" tone={pending ? "warn" : "default"} />
-        <AdminStat label="Frozen" value={String(users.filter((u) => u.status === "frozen").length)} sub="compliance holds" tone="crit" />
+        <AdminStat label="Pending verification" value={String(pending)} sub="awaiting email/KYC" tone={pending ? "warn" : "default"} />
+        <AdminStat label="Frozen / locked" value={String(users.filter((u) => u.status === "frozen").length)} sub="compliance & lockouts" tone="crit" />
       </div>
 
       <div className="admin-card overflow-hidden">
@@ -72,7 +104,7 @@ export default function AdminUsers() {
                 <th className="font-medium px-3 py-2.5">Type</th>
                 <th className="font-medium px-3 py-2.5">KYC</th>
                 <th className="font-medium px-3 py-2.5">Status</th>
-                <th className="font-medium px-3 py-2.5 text-right">30d volume</th>
+                <th className="font-medium px-3 py-2.5 text-right">Balance / 30d vol</th>
                 <th className="font-medium px-5 py-2.5 text-right">Actions</th>
               </tr>
             </thead>
@@ -85,8 +117,11 @@ export default function AdminUsers() {
                         {u.type === "Company" ? <Building2 className="h-4 w-4" /> : <Users className="h-4 w-4" />}
                       </span>
                       <div>
-                        <p className="text-sm font-medium text-white">{u.name}</p>
-                        <p className="text-[11px] admin-faint tnum">{u.id} · {u.country}</p>
+                        <p className="text-sm font-medium text-white">
+                          {u.name}
+                          {u.role && <span className="ml-2 admin-chip !py-0 !px-1.5 !text-[9px] uppercase">{u.role}</span>}
+                        </p>
+                        <p className="text-[11px] admin-faint tnum">{u.email ?? u.id} · {u.country}</p>
                       </div>
                     </div>
                   </td>

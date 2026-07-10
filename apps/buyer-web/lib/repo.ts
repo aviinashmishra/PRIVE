@@ -1,6 +1,6 @@
 import { db, hasDb } from "@/db/client";
 import { retirements, orders, projects } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { nextStage, SELLER_ACCOUNT_ID } from "./pipeline";
 
 // Seeded demo-trader account (trader@prive.exchange). Routes now pass the
@@ -182,6 +182,22 @@ export async function createOrder(input: {
   };
   memOrders.push(rec);
   return rec;
+}
+
+// Marks an open order cancelled — only if it belongs to the given account.
+export async function cancelOrderRecord(id: string, accountId: string): Promise<boolean> {
+  if (hasDb && db) {
+    const result = await db
+      .update(orders)
+      .set({ status: "cancelled" })
+      .where(and(eq(orders.id, id), eq(orders.accountId, accountId), eq(orders.status, "open")))
+      .returning({ id: orders.id });
+    return result.length > 0;
+  }
+  const rec = memOrders.find((o) => o.id === id && o.status === "open");
+  if (!rec) return false;
+  rec.status = "cancelled";
+  return true;
 }
 
 // ------------------------------ Projects (seller ↔ admin) ------------------------------

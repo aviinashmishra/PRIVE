@@ -71,6 +71,7 @@ export interface OrderResult {
   message: string;
   filled?: number;
   avgPrice?: number;
+  orderId?: string; // local id of a resting order (used to link the backend row)
 }
 
 interface State {
@@ -101,6 +102,8 @@ interface State {
     qty: number,
   ) => OrderResult;
   cancelOrder: (id: string) => void;
+  linkRemoteOrder: (localId: string, remoteId: string) => void;
+  remoteOrderIds: Record<string, string>;
   retire: (symbol: string, qty: number, beneficiary: string) => Retirement | null;
   burnCredits: (symbol: string, qty: number) => boolean;
   logMiningAction: (type: string, points: number) => void;
@@ -250,16 +253,28 @@ export const useStore = create<State>((set, get) => ({
     }
 
     // rests on the book
+    const localId = uid("o");
     set((state) => {
-      const order: OpenOrder = { id: uid("o"), pair, side, type, price: execPrice, qty, filled: 0, time: Date.now(), status: "open" };
+      const order: OpenOrder = { id: localId, pair, side, type, price: execPrice, qty, filled: 0, time: Date.now(), status: "open" };
       // reserve funds for buys by lowering available USD
       const usd = side === "buy" ? state.usd - notional : state.usd;
       return { openOrders: [order, ...state.openOrders], usd };
     });
-    return { ok: true, message: `Limit ${side} order placed · ${qty} ${symbol} @ ${execPrice.toFixed(2)}` };
+    return { ok: true, message: `Limit ${side} order placed · ${qty} ${symbol} @ ${execPrice.toFixed(2)}`, orderId: localId };
+  },
+
+  remoteOrderIds: {},
+
+  linkRemoteOrder: (localId, remoteId) => {
+    set((state) => ({ remoteOrderIds: { ...state.remoteOrderIds, [localId]: remoteId } }));
   },
 
   cancelOrder: (id) => {
+    // also cancel the persisted backend row, if this order was linked to one
+    const remoteId = get().remoteOrderIds[id];
+    if (remoteId) {
+      void import("@/lib/api").then((api) => api.cancelOrderApi(remoteId));
+    }
     set((state) => {
       const order = state.openOrders.find((o) => o.id === id);
       if (!order || order.status !== "open") return {};

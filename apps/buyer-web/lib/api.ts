@@ -133,6 +133,7 @@ export async function postChainRetire(amount: number, beneficiary: string) {
   return j.data as { txHash: string; certificateId: string; tokenURI: string; amount: number; blockNumber: number };
 }
 
+// Persists the order and returns the backend order id (used to cancel later).
 export async function postOrder(input: {
   pair: string;
   side: string;
@@ -140,14 +141,27 @@ export async function postOrder(input: {
   price: number;
   qty: number;
   status: string;
-}): Promise<void> {
+}): Promise<string | null> {
   try {
-    await fetch("/api/orders", {
+    const r = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return (j.data?.id as string) ?? null;
   } catch {
     /* non-blocking: order history persistence is best-effort in the demo */
+    return null;
+  }
+}
+
+// Best-effort backend cancel (openapi: DELETE /orders/{id}).
+export async function cancelOrderApi(id: string): Promise<void> {
+  try {
+    await fetch(`/api/orders/${id}`, { method: "DELETE" });
+  } catch {
+    /* non-blocking */
   }
 }
