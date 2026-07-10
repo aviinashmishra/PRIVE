@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPassword, dummyHash, generateVerifyCode, sha256, validateEmail } from "@/lib/auth/password";
-import { findUserByEmail, recordLoginFailure, resetLoginFailures, createAuthToken } from "@/lib/auth/store";
+import { findUserByEmail, recordLoginFailure, resetLoginFailures, createAuthToken, setEmailVerified } from "@/lib/auth/store";
 import { issueSession, setSessionCookie } from "@/lib/auth/session";
 import { sendVerificationEmail } from "@/lib/auth/email";
 import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
-import { VERIFY_CODE_TTL_MS } from "@/lib/auth/config";
+import { VERIFY_CODE_TTL_MS, requireEmailVerification } from "@/lib/auth/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,17 +48,20 @@ export async function POST(req: NextRequest) {
 
     await resetLoginFailures(user.id);
 
-    // Email authentication is mandatory: unverified users are re-issued a code
-    // instead of a session.
+    // With the OTP gate on, unverified users are re-issued a code instead of a
+    // session; with it off, pre-existing unverified accounts are activated here.
     if (!user.emailVerifiedAt) {
-      const code = generateVerifyCode();
-      await createAuthToken(user.id, "verify_email", sha256(code), new Date(Date.now() + VERIFY_CODE_TTL_MS));
-      await sendVerificationEmail(email, code);
-      return NextResponse.json({
-        ok: true,
-        requiresVerification: true,
-        next: `/verify-email?email=${encodeURIComponent(email)}`,
-      });
+      if (requireEmailVerification()) {
+        const code = generateVerifyCode();
+        await createAuthToken(user.id, "verify_email", sha256(code), new Date(Date.now() + VERIFY_CODE_TTL_MS));
+        await sendVerificationEmail(email, code);
+        return NextResponse.json({
+          ok: true,
+          requiresVerification: true,
+          next: `/verify-email?email=${encodeURIComponent(email)}`,
+        });
+      }
+      await setEmailVerified(user.id);
     }
 
     const { token, home } = await issueSession(user, req);

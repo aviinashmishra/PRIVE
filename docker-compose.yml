@@ -59,6 +59,8 @@ services:
       DATABASE_URL: postgres://prive:${POSTGRES_PASSWORD:-prive_dev_password}@db:5432/prive
       # Also re-run idempotent migrations on boot — same path Render uses (render.yaml).
       RUN_MIGRATIONS: "true"
+      # Mailpit makes OTP flows fully testable locally — set to "true" to try them.
+      REQUIRE_EMAIL_VERIFICATION: ${REQUIRE_EMAIL_VERIFICATION:-false}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
       SEED_TRADER_PASSWORD: ${SEED_TRADER_PASSWORD:-}
       SEED_SELLER_PASSWORD: ${SEED_SELLER_PASSWORD:-}

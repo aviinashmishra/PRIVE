@@ -34,7 +34,10 @@ docker compose up --build
 
 ## Authentication (end-to-end, per docs/05 §2)
 
-Full email + password auth with **mandatory email verification**:
+Full email + password auth with **email verification behind a flag**
+(`REQUIRE_EMAIL_VERIFICATION` — currently `false` in deployments without reliable
+SMTP; signup activates the account and signs in immediately. Set it `true` to
+restore the mandatory OTP flow below):
 
 - **Argon2id** password hashing (`@node-rs/argon2`, OWASP parameters), generic error
   messages, timing-equalised lookups, 5-failure / 15-min lockout, per-IP + per-account

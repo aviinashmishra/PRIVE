@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hashPassword, validateEmail, validatePassword, generateVerifyCode, sha256 } from "@/lib/auth/password";
-import { findUserByEmail, createUser, createAuthToken } from "@/lib/auth/store";
+import { findUserByEmail, createUser, createAuthToken, setEmailVerified } from "@/lib/auth/store";
+import { issueSession, setSessionCookie } from "@/lib/auth/session";
 import { sendVerificationEmail } from "@/lib/auth/email";
 import { rateLimit, clientIp } from "@/lib/auth/rate-limit";
-import { VERIFY_CODE_TTL_MS } from "@/lib/auth/config";
+import { VERIFY_CODE_TTL_MS, requireEmailVerification } from "@/lib/auth/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +42,18 @@ export async function POST(req: NextRequest) {
       displayName: name,
       role,
     });
+
+    // OTP gate disabled: activate the account and sign the user straight in.
+    if (!requireEmailVerification()) {
+      await setEmailVerified(user.id);
+      const { token, home } = await issueSession({ ...user, emailVerifiedAt: new Date() }, req);
+      const res = NextResponse.json(
+        { ok: true, next: home, user: { email: user.email, name: user.displayName, role: user.role } },
+        { status: 201 },
+      );
+      setSessionCookie(res, token);
+      return res;
+    }
 
     const code = generateVerifyCode();
     await createAuthToken(user.id, "verify_email", sha256(code), new Date(Date.now() + VERIFY_CODE_TTL_MS));

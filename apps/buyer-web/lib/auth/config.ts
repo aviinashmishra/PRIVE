@@ -9,6 +9,13 @@ export const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
 
 export type Role = "buyer" | "seller" | "admin";
 
+// Email-verification gate. Disabled by default while the deployment has no
+// reliable SMTP; set REQUIRE_EMAIL_VERIFICATION=true to restore mandatory OTP
+// verification (docs/05 §2) — all the code paths stay live behind this flag.
+export function requireEmailVerification(): boolean {
+  return process.env.REQUIRE_EMAIL_VERIFICATION === "true";
+}
+
 export const HOME_BY_ROLE: Record<Role, string> = {
   buyer: "/dashboard",
   seller: "/seller",

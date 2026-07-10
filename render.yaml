@@ -24,6 +24,10 @@ services:
         generateValue: true
       - key: RUN_MIGRATIONS
         value: "true"
+      # OTP email verification is off until SMTP is reliable here.
+      # Flip to "true" to restore mandatory email authentication.
+      - key: REQUIRE_EMAIL_VERIFICATION
+        value: "false"
       # Set to your Render URL (or custom domain) after the first deploy —
       # it is used in emailed password-reset links.
       - key: APP_URL

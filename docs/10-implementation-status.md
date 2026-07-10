@@ -31,7 +31,7 @@ tests against the standalone production build and the Docker stack).
 | Control | Status | Notes |
 |---|---|---|
 | Email+password, Argon2id hashing | ✅ | `@node-rs/argon2`, OWASP parameters |
-| Mandatory email verification (6-digit OTP) | ✅ | 15-min expiry; re-issued on unverified login; SMTP or console fallback |
+| Email verification (6-digit OTP) | ✅ (flag) | Behind `REQUIRE_EMAIL_VERIFICATION` — currently **off** in deploys without reliable SMTP; signup auto-activates. Flip to true to restore the mandatory gate |
 | Password reset flow | ✅ | 30-min token; revokes all sessions |
 | Revocable sessions (JWT + server-side session table) | ✅ | httpOnly cookie; Settings lists/revokes devices |
 | Deny-by-default RBAC (edge middleware + per-route guards) | ✅ | buyer/seller/admin; admin may enter all portals |
