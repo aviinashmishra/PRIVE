@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { useProjects } from "@/lib/useProjects";
+import { useAdminSummary } from "@/lib/useAdminSummary";
 import { AdminStat } from "@/components/admin/AdminShell";
-import { fmtCompact, fmtUsd, fmtPrice, clsx } from "@/lib/format";
+import { fmtCompact, fmtUsd, fmtPrice, timeAgo, clsx } from "@/lib/format";
 import { Activity, Cpu, Fuel, ShieldCheck, TriangleAlert, ArrowRight, Gavel } from "lucide-react";
 
 const health = [
@@ -16,37 +17,34 @@ const health = [
   { label: "KYC vendor", value: "Operational", ok: true, icon: ShieldCheck },
 ];
 
-const alerts = [
-  { kind: "wash_trade", market: "COOK-UG25", sev: "medium", note: "Self-crossing pattern, 3 accounts", time: "4m" },
-  { kind: "spoofing", market: "DAC-IS25", sev: "low", note: "Layered asks pulled pre-fill", time: "22m" },
-  { kind: "pump_dump", market: "BIO-KE24", sev: "high", note: "+14% / 6m volume anomaly", time: "1h" },
-];
-
 export default function AdminOverview() {
   const markets = useStore((s) => s.markets);
   const platformRetired = useStore((s) => s.platformRetired);
   const { projects } = useProjects();
+  const summary = useAdminSummary();
 
   const vol24 = markets.reduce((a, m) => a + m.quoteVolume24h, 0);
-  const tokenized = markets.reduce((a, m) => a + m.supply, 0);
-  const pending = projects.filter((p) => p.status === "pending").length;
+  const pending = summary?.projects.pending ?? projects.filter((p) => p.status === "pending").length;
   const top = [...markets].sort((a, b) => b.quoteVolume24h - a.quoteVolume24h).slice(0, 5);
+  const alerts = summary?.alerts?.length
+    ? summary.alerts.slice(0, 3)
+    : [{ kind: "all_clear", market: "—", sev: "low", note: "No anomalies in the recent order flow", time: Date.now() }];
 
   return (
     <div className="space-y-5 animate-fade-up">
       <div>
         <h1 className="font-display text-xl font-semibold text-white">Global overview</h1>
-        <p className="text-sm admin-soft mt-0.5">Real-time health of the entire ecosystem.</p>
+        <p className="text-sm admin-soft mt-0.5">Live platform state, straight from the ledger.</p>
       </div>
 
-      {/* KPI wall */}
+      {/* KPI wall — real DB aggregates */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <AdminStat label="Active users (24h)" value="12,480" sub="+6.2% vs. yesterday" tone="good" />
-        <AdminStat label="24h volume" value={fmtUsd(vol24)} sub="across all pairs" />
-        <AdminStat label="Tonnes tokenised" value={`${fmtCompact(tokenized)}`} sub="circulating supply" />
-        <AdminStat label="Tonnes retired" value={fmtCompact(platformRetired)} sub="lifetime, on-chain" tone="good" />
+        <AdminStat label="Registered users" value={String(summary?.users.total ?? "…")} sub={`${summary?.users.new24h ?? 0} new · 24h`} tone="good" />
+        <AdminStat label="Active sessions" value={String(summary?.sessions.active ?? "…")} sub="signed-in devices" />
+        <AdminStat label="Orders (24h)" value={String(summary?.orders.count24h ?? "…")} sub={`${fmtUsd(summary?.orders.notional24h ?? 0)} notional`} />
+        <AdminStat label="Tonnes retired" value={fmtCompact((summary?.retirements.tonnes ?? 0) + platformRetired)} sub={`${summary?.retirements.total ?? 0} certificates`} tone="good" />
         <AdminStat label="Pending verifications" value={String(pending)} sub="in the queue" tone={pending > 3 ? "warn" : "default"} />
-        <AdminStat label="Open disputes" value="2" sub="1 needs escrow action" tone="warn" />
+        <AdminStat label="Open tickets" value={String((summary?.tickets.open ?? 0) + (summary?.tickets.inProgress ?? 0))} sub={`${summary?.tickets.open ?? 0} unanswered`} tone={(summary?.tickets.open ?? 0) > 0 ? "warn" : "default"} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-5">
@@ -83,8 +81,8 @@ export default function AdminOverview() {
               <div key={i} className="flex items-start gap-3">
                 <span className={clsx("mt-1 h-2 w-2 rounded-full shrink-0", a.sev === "high" ? "bg-[#E5715C]" : a.sev === "medium" ? "bg-[#D6A63E]" : "bg-[#5f7268]")} />
                 <div className="min-w-0">
-                  <p className="text-sm text-white capitalize">{a.kind.replace("_", " ")} · <span className="tnum">{a.market}</span></p>
-                  <p className="text-xs admin-faint truncate">{a.note} · {a.time} ago</p>
+                  <p className="text-sm text-white capitalize">{a.kind.replace(/_/g, " ")} · <span className="tnum">{a.market}</span></p>
+                  <p className="text-xs admin-faint truncate">{a.note} · {timeAgo(a.time)}</p>
                 </div>
               </div>
             ))}

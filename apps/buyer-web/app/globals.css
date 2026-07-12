@@ -7,6 +7,37 @@
     --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
     --font-display: "Fraunces", Georgia, serif;
     --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+    /* ── light theme (default) — rgb triplets consumed by tailwind.config ── */
+    --c-canvas: 251 253 251; /* #FBFDFB */
+    --c-paper: 255 255 255;
+    --c-mist: 243 247 244; /* #F3F7F4 */
+    --c-line: 230 238 233; /* #E6EEE9 */
+    --c-line-strong: 211 225 217; /* #D3E1D9 */
+    --c-ink: 11 31 23; /* #0B1F17 */
+    --c-ink-soft: 66 86 77; /* #42564D */
+    --c-ink-faint: 122 138 130; /* #7A8A82 */
+    --c-brand-50: 234 247 241; /* #EAF7F1 */
+    --c-brand-100: 210 238 225; /* #D2EEE1 */
+    --c-brand-200: 166 221 196; /* #A6DDC4 */
+    --c-brand-700: 11 98 68; /* #0B6244 */
+  }
+
+  /* ── dark theme — forest-night luxury ── */
+  .dark {
+    --c-canvas: 10 15 12; /* #0A0F0C */
+    --c-paper: 16 26 20; /* #101A14 */
+    --c-mist: 22 33 26; /* #16211A */
+    --c-line: 30 43 35; /* #1E2B23 */
+    --c-line-strong: 44 62 51; /* #2C3E33 */
+    --c-ink: 233 241 236; /* #E9F1EC */
+    --c-ink-soft: 167 184 174; /* #A7B8AE */
+    --c-ink-faint: 110 129 119; /* #6E8177 */
+    --c-brand-50: 18 36 28; /* #12241C */
+    --c-brand-100: 22 50 39; /* #163227 */
+    --c-brand-200: 30 66 50; /* #1E4232 */
+    --c-brand-700: 76 199 154; /* #4CC79A — readable accent on dark */
+    color-scheme: dark;
   }
 
   html {
@@ -26,20 +57,20 @@
   /* refined scrollbar */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #cdddd4 transparent;
+    scrollbar-color: rgb(var(--c-line-strong)) transparent;
   }
   *::-webkit-scrollbar {
     width: 10px;
     height: 10px;
   }
   *::-webkit-scrollbar-thumb {
-    background: #cdddd4;
+    background: rgb(var(--c-line-strong));
     border-radius: 999px;
     border: 3px solid transparent;
     background-clip: content-box;
   }
   *::-webkit-scrollbar-thumb:hover {
-    background: #b3c9bd;
+    background: rgb(var(--c-ink-faint));
     background-clip: content-box;
   }
 
@@ -89,8 +120,12 @@
   }
 
   .glass {
-    background: rgba(255, 255, 255, 0.72);
+    background: rgb(var(--c-paper) / 0.72);
     backdrop-filter: saturate(140%) blur(14px);
+  }
+
+  .dark .grain {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   }
 
   .link-underline {
@@ -103,6 +138,63 @@
   .link-underline:hover {
     background-size: 100% 1px;
   }
+}
+
+/* ===== Admin console light-theme remap ===================================
+   The admin console was designed dark-first with some hardcoded utilities.
+   When the global theme is LIGHT, this scoped block remaps the console to a
+   light "day-ops" look without touching each screen. Dark mode (default for
+   admins) keeps the original mission-control palette below. */
+:root:not(.dark) .admin-root {
+  background: #f6faf7;
+  background-image: none;
+  color: #0b1f17;
+}
+:root:not(.dark) .admin-root .text-white {
+  color: #0b1f17;
+}
+:root:not(.dark) .admin-root .admin-card {
+  background: #ffffff;
+  border-color: #e2ece6;
+}
+:root:not(.dark) .admin-root .admin-soft {
+  color: #42564d;
+}
+:root:not(.dark) .admin-root .admin-faint {
+  color: #7a8a82;
+}
+:root:not(.dark) .admin-root .admin-line {
+  border-color: #e2ece6;
+}
+:root:not(.dark) .admin-root .admin-chip {
+  background: #eef5f0;
+  color: #42564d;
+  border-color: #d8e6dd;
+}
+:root:not(.dark) .admin-root .admin-row:hover {
+  background: #f0f6f2;
+}
+:root:not(.dark) .admin-root .admin-input {
+  background: #ffffff;
+  border-color: #d8e6dd;
+  color: #0b1f17;
+}
+/* hardcoded dark tints → light equivalents (accent green stays #23C286-family) */
+:root:not(.dark) .admin-root [class*="#12241C"],
+:root:not(.dark) .admin-root [class*="#16221C"],
+:root:not(.dark) .admin-root [class*="#0E1712"] {
+  background-color: #e5f4ec;
+  color: #0b6244;
+}
+:root:not(.dark) .admin-root [class*="#2A1512"] {
+  background-color: #fdecea;
+  color: #c0392b;
+}
+:root:not(.dark) .admin-root [class*="bg-[#0A0F0C]"] {
+  background-color: rgba(255, 255, 255, 0.85);
+}
+:root:not(.dark) .admin-root [class*="text-[#23C286]"] {
+  color: #0e7c55;
 }
 
 /* ===== Admin console — dark, dense "mission control" theme (single-theme by design) ===== */
@@ -186,6 +278,48 @@
   /* soft pulsing halo behind hero */
   .aurora {
     animation: aurora 14s ease-in-out infinite alternate;
+  }
+
+  /* ── 3D system: hero terminal + tilt cards ── */
+  .persp {
+    perspective: 1600px;
+  }
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  /* pointer-tracked tilt wrapper (see components/ui/TiltCard.tsx) */
+  .tilt-card {
+    position: relative;
+    transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+    transition: transform 0.18s ease-out;
+    will-change: transform;
+  }
+  .tilt-glare {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(
+      280px circle at var(--gx, 50%) var(--gy, 50%),
+      rgb(var(--c-ink) / 0.06),
+      transparent 65%
+    );
+    transition: opacity 0.3s ease;
+  }
+  .dark .tilt-glare {
+    background: radial-gradient(
+      280px circle at var(--gx, 50%) var(--gy, 50%),
+      rgba(255, 255, 255, 0.08),
+      transparent 65%
+    );
+  }
+  .tilt-card:hover .tilt-glare {
+    opacity: 1;
+  }
+  .tilt-card > :first-child {
+    border-radius: inherit;
   }
 }
 

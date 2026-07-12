@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useStore } from "@/lib/store";
+import { useAdminSummary } from "@/lib/useAdminSummary";
 import { AdminStat } from "@/components/admin/AdminShell";
 import { toast } from "@/components/ui/Toast";
 import { fmtUsd, fmtCompact, clsx } from "@/lib/format";
@@ -19,8 +20,11 @@ export default function AdminTreasury() {
   ]);
   const [approving, setApproving] = useState<string | null>(null);
 
+  const summary = useAdminSummary();
   const custodyValue = markets.reduce((a, m) => a + m.supply * m.price, 0);
   const feeRevenue = markets.reduce((a, m) => a + m.quoteVolume24h * 0.0015, 0);
+  const customerBalances = summary?.treasury.customerBalances ?? 0;
+  const retiredTonnes = (summary?.retirements.tonnes ?? 0) + platformRetired;
 
   const approve = (id: string) => {
     setApproving(id);
@@ -46,9 +50,9 @@ export default function AdminTreasury() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <AdminStat label="Customer balances" value={fmtUsd(customerBalances)} sub="sum of all account wallets (ledger)" tone="good" />
         <AdminStat label="Assets under custody" value={fmtUsd(custodyValue)} sub="credits + stablecoin" tone="good" />
-        <AdminStat label="Cold storage ratio" value="96%" sub="of total assets" tone="good" />
-        <AdminStat label="Retired (lifetime)" value={`${fmtCompact(platformRetired)} t`} sub="burned on-chain" />
+        <AdminStat label="Retired (lifetime)" value={`${fmtCompact(retiredTonnes)} t`} sub={`${summary?.retirements.total ?? 0} certificates issued`} />
         <AdminStat label="Reconciliation drift" value="0.00" sub="ledger ↔ chain" tone="good" />
       </div>
 

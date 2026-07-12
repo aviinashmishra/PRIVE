@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useProjects } from "@/lib/useProjects";
+import { useSellerSummary } from "@/lib/useSellerSummary";
 import { StatCard } from "@/components/ui/StatCard";
 import { StageTracker, StatusBadge } from "@/components/ui/StageTracker";
 import { TypePill } from "@/components/ui/bits";
@@ -10,18 +12,27 @@ import { FolderKanban, Boxes, Clock, Coins, ArrowRight, Plus, Loader2 } from "lu
 
 export default function SellerDashboard() {
   const { projects, loading } = useProjects();
+  const { summary } = useSellerSummary();
+  const [name, setName] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setName(j?.data?.name ?? null))
+      .catch(() => {});
+  }, []);
 
   const live = projects.filter((p) => p.status === "live");
   const pending = projects.filter((p) => p.status === "pending");
-  const issued = live.reduce((a, p) => a + p.expectedAnnual, 0);
+  const issued = summary?.totals.minted ?? live.reduce((a, p) => a + p.expectedAnnual, 0);
   const inPipeline = pending.reduce((a, p) => a + p.expectedAnnual, 0);
-  const estRevenue = live.reduce((a, p) => a + p.expectedAnnual * p.price * 0.35, 0); // 35% sold assumption
+  const netRevenue = summary?.totals.netRevenue ?? 0;
 
   return (
     <div className="space-y-7 animate-fade-up">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm text-ink-soft">Welcome back, Verdant Terra Ltd</p>
+          <p className="text-sm text-ink-soft">Welcome back{name ? `, ${name}` : ""}</p>
           <h1 className="font-display text-2xl font-semibold text-ink mt-1">Project developer console</h1>
         </div>
         <Link href="/seller/projects?new=1" className="btn-primary"><Plus className="h-4 w-4" /> Submit a project</Link>
@@ -31,7 +42,7 @@ export default function SellerDashboard() {
         <StatCard label="Live projects" value={String(live.length)} sub={`${projects.length} total`} icon={<FolderKanban className="h-4 w-4" />} tone="brand" />
         <StatCard label="Credits issued" value={`${fmtCompact(issued)} t`} sub="tokenised & tradable" icon={<Boxes className="h-4 w-4" />} />
         <StatCard label="In verification" value={`${fmtCompact(inPipeline)} t`} sub={`${pending.length} projects pending`} icon={<Clock className="h-4 w-4" />} />
-        <StatCard label="Est. revenue" value={fmtUsd(estRevenue)} sub="realised to date" icon={<Coins className="h-4 w-4" />} />
+        <StatCard label="Net revenue" value={fmtUsd(netRevenue)} sub="ledger sales, after fees" icon={<Coins className="h-4 w-4" />} />
       </div>
 
       <div className="card p-6">

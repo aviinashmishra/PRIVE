@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { getChainStatus, ChainStatus } from "@/lib/api";
 import { fmtCompact, timeAgo, clsx } from "@/lib/format";
 import {
@@ -64,7 +65,8 @@ export default function ExplorerPage() {
         <div className="max-w-5xl mx-auto px-5 h-16 flex items-center justify-between">
           <Link href="/"><Logo /></Link>
           <div className="flex items-center gap-3">
-            <span className="chip"><Globe2 className="h-3.5 w-3.5" /> Public · no login</span>
+            <span className="chip hidden sm:inline-flex"><Globe2 className="h-3.5 w-3.5" /> Public · no login</span>
+            <ThemeToggle />
             <Link href="/dashboard" className="btn-primary !py-2">Launch app <ArrowRight className="h-4 w-4" /></Link>
           </div>
         </div>

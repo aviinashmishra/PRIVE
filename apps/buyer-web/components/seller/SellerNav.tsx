@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Logo } from "@/components/ui/Logo";
 import { PortalSwitcher } from "@/components/ui/PortalSwitcher";
 import { UserMenu } from "@/components/ui/UserMenu";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { clsx } from "@/lib/format";
 import { LayoutDashboard, FolderKanban, Boxes, LineChart } from "lucide-react";
 
@@ -29,6 +30,7 @@ export function SellerNav() {
             <div className="hidden md:block leading-tight text-right">
               <p className="text-[11px] text-ink-faint">KYB verified · Project Developer</p>
             </div>
+            <ThemeToggle />
             <PortalSwitcher current="seller" />
             <UserMenu />
           </div>

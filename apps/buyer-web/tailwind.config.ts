@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -9,29 +10,31 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // green & white luxury palette — emerald spine, forest depths, champagne whisper
+        // green & white luxury palette — emerald spine, forest depths, champagne whisper.
+        // Semantic tokens are CSS variables (globals.css) so the whole app re-skins
+        // between light and dark; brand hues 300–950 read well on both and stay fixed.
         brand: {
-          50: "#EAF7F1",
-          100: "#D2EEE1",
-          200: "#A6DDC4",
+          50: "rgb(var(--c-brand-50) / <alpha-value>)",
+          100: "rgb(var(--c-brand-100) / <alpha-value>)",
+          200: "rgb(var(--c-brand-200) / <alpha-value>)",
           300: "#6FC7A0",
           400: "#39AC7C",
           500: "#128F62",
           600: "#0E7C55",
-          700: "#0B6244",
+          700: "rgb(var(--c-brand-700) / <alpha-value>)",
           800: "#0A4E37",
           900: "#08402E",
           950: "#04241A",
         },
         forest: "#05271C",
-        canvas: "#FBFDFB",
-        paper: "#FFFFFF",
-        mist: "#F3F7F4",
-        line: "#E6EEE9",
-        "line-strong": "#D3E1D9",
-        ink: "#0B1F17",
-        "ink-soft": "#42564D",
-        "ink-faint": "#7A8A82",
+        canvas: "rgb(var(--c-canvas) / <alpha-value>)",
+        paper: "rgb(var(--c-paper) / <alpha-value>)",
+        mist: "rgb(var(--c-mist) / <alpha-value>)",
+        line: "rgb(var(--c-line) / <alpha-value>)",
+        "line-strong": "rgb(var(--c-line-strong) / <alpha-value>)",
+        ink: "rgb(var(--c-ink) / <alpha-value>)",
+        "ink-soft": "rgb(var(--c-ink-soft) / <alpha-value>)",
+        "ink-faint": "rgb(var(--c-ink-faint) / <alpha-value>)",
         gold: "#B8934F",
         "gold-soft": "#D8BE8A",
         up: "#0E9E68",

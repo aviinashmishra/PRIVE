@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { ShieldCheck } from "lucide-react";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -10,10 +11,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         className="absolute -z-10 inset-x-0 top-0 h-[480px]"
         style={{ background: "radial-gradient(60% 70% at 50% -10%, rgba(14,124,85,.10), transparent 60%)" }}
       />
-      <header className="h-16 flex items-center px-5 max-w-6xl w-full mx-auto">
+      <header className="h-16 flex items-center justify-between px-5 max-w-6xl w-full mx-auto">
         <Link href="/">
           <Logo />
         </Link>
+        <ThemeToggle />
       </header>
       <main className="flex-1 grid place-items-center px-4 py-10">
         <div className="w-full max-w-[420px]">{children}</div>

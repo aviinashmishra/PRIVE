@@ -2,22 +2,23 @@
 
 import { useState } from "react";
 import { useStore } from "@/lib/store";
+import { useAdminSummary } from "@/lib/useAdminSummary";
 import { AdminStat } from "@/components/admin/AdminShell";
 import { toast } from "@/components/ui/Toast";
-import { fmtPrice, clsx } from "@/lib/format";
+import { fmtPrice, timeAgo, clsx } from "@/lib/format";
 import { TriangleAlert, OctagonPause, Play, Radar } from "lucide-react";
 
 interface Alert { id: string; kind: string; market: string; sev: "low" | "medium" | "high"; note: string; time: string; }
 
+// Illustrative ML-tier alerts — shown alongside the real rule-based feed below.
 const ALERTS: Alert[] = [
-  { id: "a1", kind: "Wash trading", market: "COOK-UG25", sev: "medium", note: "Self-crossing between 3 linked accounts", time: "4m" },
   { id: "a2", kind: "Pump & dump", market: "BIO-KE24", sev: "high", note: "+14% on 6× median volume in 6 min", time: "1h" },
   { id: "a3", kind: "Spoofing / layering", market: "DAC-IS25", sev: "low", note: "Large asks pulled before fill, 12 events", time: "22m" },
-  { id: "a4", kind: "Insider watch", market: "BLUE-ID24", sev: "medium", note: "Accumulation ahead of verifier update", time: "3h" },
 ];
 
 export default function AdminSurveillance() {
   const markets = useStore((s) => s.markets);
+  const summary = useAdminSummary();
   const [halted, setHalted] = useState<Record<string, boolean>>({});
   const [resolved, setResolved] = useState<Record<string, boolean>>({});
 
@@ -29,7 +30,17 @@ export default function AdminSurveillance() {
     });
   };
 
-  const openAlerts = ALERTS.filter((a) => !resolved[a.id]);
+  // real rule-based alerts computed from the live order ledger (large orders,
+  // submission bursts) merged with the illustrative ML tier
+  const realAlerts: Alert[] = (summary?.alerts ?? []).map((a, i) => ({
+    id: `r${i}-${a.time}`,
+    kind: a.kind === "large_order" ? "Large order" : a.kind === "velocity" ? "Order velocity" : a.kind,
+    market: a.market,
+    sev: (a.sev as Alert["sev"]) ?? "medium",
+    note: a.note,
+    time: timeAgo(a.time).replace(" ago", ""), // feed template appends "ago"
+  }));
+  const openAlerts = [...realAlerts, ...ALERTS].filter((a) => !resolved[a.id]);
 
   return (
     <div className="space-y-5 animate-fade-up">

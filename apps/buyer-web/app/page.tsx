@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { LandingTicker } from "@/components/marketing/LandingTicker";
+import { Hero3D } from "@/components/marketing/Hero3D";
 import { Sparkline } from "@/components/ui/Sparkline";
 import { Reveal, CountUp } from "@/components/ui/Reveal";
+import { TiltCard } from "@/components/ui/TiltCard";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { MARKETS } from "@/lib/data";
 import { fmtPrice, fmtCompact } from "@/lib/format";
 import {
@@ -45,6 +48,7 @@ export default function Landing() {
             <Link href="/explorer" className="link-underline hover:text-ink">Explorer</Link>
           </nav>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Link href="/login" className="hidden sm:inline text-sm font-medium text-ink-soft hover:text-ink">
               Sign in
             </Link>
@@ -105,6 +109,13 @@ export default function Landing() {
             </p>
           </Reveal>
         </div>
+
+        {/* live 3D trading terminal */}
+        <Reveal delay={320}>
+          <div className="pb-16 pt-2">
+            <Hero3D />
+          </div>
+        </Reveal>
 
         <LandingTicker />
       </section>
@@ -196,14 +207,14 @@ export default function Landing() {
           {features.map((f, i) => {
             const Icon = f.icon;
             return (
-              <Reveal key={f.title} delay={(i % 3) * 100}>
-                <div className="card p-7 h-full hover:shadow-lift hover:-translate-y-1 hover:border-brand-200 transition-all duration-300">
+              <Reveal key={f.title} delay={(i % 3) * 100} className="h-full">
+                <TiltCard className="card p-7 h-full hover:shadow-lift hover:border-brand-200">
                   <div className="grid place-items-center h-11 w-11 rounded-xl bg-brand-50 text-brand-600 mb-5">
                     <Icon className="h-5 w-5" />
                   </div>
                   <h3 className="font-semibold text-lg text-ink mb-2">{f.title}</h3>
                   <p className="text-sm text-ink-soft leading-relaxed">{f.body}</p>
-                </div>
+                </TiltCard>
               </Reveal>
             );
           })}
@@ -279,15 +290,17 @@ export default function Landing() {
           ].map((p, i) => {
             const Icon = p.icon;
             return (
-              <Reveal key={p.href} delay={i * 100}>
-                <Link href={p.href} className="card p-7 h-full block hover:shadow-lift hover:-translate-y-1 hover:border-brand-200 transition-all duration-300 group">
-                  <div className="grid place-items-center h-11 w-11 rounded-xl bg-brand-50 text-brand-600 mb-5"><Icon className="h-5 w-5" /></div>
-                  <h3 className="font-semibold text-lg text-ink mb-2">{p.title}</h3>
-                  <p className="text-sm text-ink-soft leading-relaxed mb-4">{p.body}</p>
-                  <span className="text-sm font-semibold text-brand-700 inline-flex items-center gap-1.5">
-                    {p.cta} <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                  </span>
-                </Link>
+              <Reveal key={p.href} delay={i * 100} className="h-full">
+                <TiltCard className="h-full rounded-2xl">
+                  <Link href={p.href} className="card p-7 h-full block hover:shadow-lift hover:border-brand-200 transition-colors duration-300 group">
+                    <div className="grid place-items-center h-11 w-11 rounded-xl bg-brand-50 text-brand-600 mb-5"><Icon className="h-5 w-5" /></div>
+                    <h3 className="font-semibold text-lg text-ink mb-2">{p.title}</h3>
+                    <p className="text-sm text-ink-soft leading-relaxed mb-4">{p.body}</p>
+                    <span className="text-sm font-semibold text-brand-700 inline-flex items-center gap-1.5">
+                      {p.cta} <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                    </span>
+                  </Link>
+                </TiltCard>
               </Reveal>
             );
           })}

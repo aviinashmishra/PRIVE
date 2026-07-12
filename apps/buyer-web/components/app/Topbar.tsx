@@ -8,6 +8,7 @@ import { Search, Bell, Leaf } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { PortalSwitcher } from "@/components/ui/PortalSwitcher";
 import { UserMenu } from "@/components/ui/UserMenu";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 const titles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -63,6 +64,8 @@ export function Topbar() {
             <p className="text-[11px] text-ink-faint">Portfolio</p>
             <p className="tnum text-sm font-bold text-brand-700">{fmtUsd(pv)}</p>
           </div>
+
+          <ThemeToggle />
 
           <div className="hidden sm:block">
             <PortalSwitcher current="buyer" />
