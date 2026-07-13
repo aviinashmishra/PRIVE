@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listRetirements, createRetirement } from "@/lib/repo";
 import { requireAuth } from "@/lib/auth/guard";
+import { debitHolding, getWallet } from "@/lib/wallet";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +29,14 @@ export async function POST(req: NextRequest) {
     if (!body.symbol || !body.name || !(qty > 0)) {
       return NextResponse.json({ error: "symbol, name and a positive qty are required" }, { status: 422 });
     }
+    // burn from the wallet first — a certificate can only exist for credits held
+    const burned = await debitHolding(session.accountId, String(body.symbol), qty);
+    if (!burned) {
+      return NextResponse.json(
+        { error: `Insufficient ${body.symbol} balance to retire.`, code: "insufficient_credits" },
+        { status: 422 },
+      );
+    }
     const rec = await createRetirement({
       symbol: String(body.symbol),
       name: String(body.name),
@@ -35,7 +44,8 @@ export async function POST(req: NextRequest) {
       beneficiary: String(body.beneficiary || "Personal"),
       accountId: session.accountId,
     });
-    return NextResponse.json({ data: rec }, { status: 201 });
+    const wallet = await getWallet(session.accountId);
+    return NextResponse.json({ data: rec, wallet }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: "Failed to create retirement", detail: String(e) }, { status: 500 });
   }

@@ -100,5 +100,43 @@ if (existingProjects[0].n === 0) {
   console.log("→ Projects already present, skipping.");
 }
 
+
+// Wallet: the demo trader's credit holdings (server-authoritative — trading,
+// mining conversions and retirements all settle against this table).
+console.log("→ Seeding demo wallet holdings…");
+const holdings = [
+  ["AMZN-RF25", 1240, 21.1],
+  ["BLUE-ID24", 380, 28.9],
+  ["SOLR-IN24", 5200, 10.2],
+  ["PRIVE-CO2", 2100, 19.4],
+];
+for (const [symbol, qty, avgCost] of holdings) {
+  await sql`
+    INSERT INTO holdings (account_id, symbol, qty, avg_cost)
+    VALUES (${DEMO_ACCOUNT_ID}, ${symbol}, ${qty}, ${avgCost})
+    ON CONFLICT (account_id, symbol) DO NOTHING
+  `;
+}
+
+// A starter mining history so the Mining Hub shows a real streak + leaderboard.
+const existingMining = await sql`SELECT count(*)::int AS n FROM mining_events WHERE account_id = ${DEMO_ACCOUNT_ID}`;
+if (existingMining[0].n === 0) {
+  console.log("→ Seeding mining history…");
+  const miningRows = [
+    // [daysAgo, actionKey, label, points]
+    [2, "checkin", "Daily check-in", 50],
+    [2, "steps", "Log today's steps", 120],
+    [1, "checkin", "Daily check-in", 50],
+    [1, "tree", "Tree-planting drive", 200],
+    [1, "referral", "Refer a friend", 400],
+  ];
+  for (const [daysAgo, key, label, points] of miningRows) {
+    await sql`
+      INSERT INTO mining_events (account_id, kind, action_key, label, points, created_at)
+      VALUES (${DEMO_ACCOUNT_ID}, 'action', ${key}, ${label}, ${points}, now() - make_interval(days => ${daysAgo}))
+    `;
+  }
+}
+
 await conn.end();
 console.log("✓ Seed complete.");

@@ -31,12 +31,14 @@ export async function getRetirements(): Promise<ApiRetirement[]> {
   return j.data as ApiRetirement[];
 }
 
+// Burns the credits from the server wallet and mints the certificate; the updated
+// wallet snapshot rides along so the UI can re-sync.
 export async function postRetirement(input: {
   symbol: string;
   name: string;
   qty: number;
   beneficiary: string;
-}): Promise<ApiRetirement> {
+}): Promise<{ rec: ApiRetirement; wallet?: { usd: number; holdings: { symbol: string; qty: number; avgCost: number }[] } }> {
   const r = await fetch("/api/retirements", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -44,7 +46,7 @@ export async function postRetirement(input: {
   });
   const j = await r.json();
   if (!r.ok) throw new Error(j.error || "Failed to create retirement");
-  return j.data as ApiRetirement;
+  return { rec: j.data as ApiRetirement, wallet: j.wallet };
 }
 
 export interface ApiProject {
@@ -114,6 +116,10 @@ export interface ChainStatus {
     uri: string;
   };
   certificates?: string;
+  mining?: {
+    totalAccruedKg: string;
+    totalSettledKg: string;
+  };
   error?: string;
 }
 
@@ -133,28 +139,126 @@ export async function postChainRetire(amount: number, beneficiary: string) {
   return j.data as { txHash: string; certificateId: string; tokenURI: string; amount: number; blockNumber: number };
 }
 
-// Persists the order and returns the backend order id (used to cancel later).
-export async function postOrder(input: {
+// ------------------------------ Wallet ------------------------------
+
+export interface ApiWallet {
+  usd: number;
+  holdings: { symbol: string; qty: number; avgCost: number }[];
+}
+
+export async function getWallet(): Promise<ApiWallet> {
+  const r = await fetch("/api/wallet", { cache: "no-store" });
+  if (!r.ok) throw new Error("Failed to load wallet");
+  const j = await r.json();
+  return j.data as ApiWallet;
+}
+
+// ------------------------------ Orders (server-settled) ------------------------------
+
+export interface ApiOrder {
+  id: string;
   pair: string;
   side: string;
   type: string;
   price: number;
   qty: number;
   status: string;
-}): Promise<string | null> {
+  time: number;
+}
+
+export interface PlaceOrderResult {
+  ok: boolean;
+  error?: string;
+  order?: ApiOrder;
+  wallet?: ApiWallet;
+  filled?: boolean;
+}
+
+// Places an order on the backend; marketable orders settle against the account
+// wallet server-side and the updated wallet comes back in the response.
+export async function placeOrderApi(input: {
+  pair: string;
+  side: string;
+  type: string;
+  price: number;
+  qty: number;
+}): Promise<PlaceOrderResult> {
   try {
     const r = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     });
-    if (!r.ok) return null;
     const j = await r.json();
-    return (j.data?.id as string) ?? null;
-  } catch {
-    /* non-blocking: order history persistence is best-effort in the demo */
-    return null;
+    if (!r.ok) return { ok: false, error: j.error || "Order rejected" };
+    return {
+      ok: true,
+      order: j.data as ApiOrder,
+      wallet: j.wallet as ApiWallet,
+      filled: (j.data?.status as string) === "filled",
+    };
+  } catch (e) {
+    return { ok: false, error: "Network error — order not placed." };
   }
+}
+
+// ------------------------------ Mining ------------------------------
+
+export interface ApiMiningStats {
+  points: number;
+  earned: number;
+  creditsMinted: number;
+  co2SavedKg: number;
+  streak: number;
+  doneToday: string[];
+  log: {
+    id: string;
+    kind: string;
+    actionKey: string;
+    label: string;
+    points: number;
+    credits: number;
+    txHash: string | null;
+    time: number;
+  }[];
+}
+
+export interface ApiMiningPayload {
+  stats: ApiMiningStats;
+  leaderboard: { rank: number; name: string; country: string; points: number; you: boolean }[];
+  actions: { key: string; label: string; sub: string; points: number }[];
+  pointsPerCredit: number;
+}
+
+export async function getMining(): Promise<ApiMiningPayload> {
+  const r = await fetch("/api/mining", { cache: "no-store" });
+  if (!r.ok) throw new Error("Failed to load mining data");
+  const j = await r.json();
+  return j.data as ApiMiningPayload;
+}
+
+export async function postMiningAction(key: string): Promise<{ points: number; stats: ApiMiningStats }> {
+  const r = await fetch("/api/mining/actions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key }),
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || "Failed to log action");
+  return j.data;
+}
+
+export async function postMiningConvert(
+  points: number,
+): Promise<{ credits: number; txHash: string | null; stats: ApiMiningStats; wallet: ApiWallet }> {
+  const r = await fetch("/api/mining/convert", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ points }),
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || "Conversion failed");
+  return j.data;
 }
 
 // Best-effort backend cancel (openapi: DELETE /orders/{id}).

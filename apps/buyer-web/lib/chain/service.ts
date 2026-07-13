@@ -35,6 +35,14 @@ const VAULT_ABI = [
   "function ownerOf(uint256) view returns (address)",
   "event CreditsRetired(uint256 indexed creditTokenId,address indexed beneficiary,uint256 amount,uint256 indexed certificateId)",
 ];
+const MINING_ABI = [
+  "function accrue(address user,uint256 creditTokenId,uint256 amount)",
+  "function claimable(address user,uint256 creditTokenId) view returns (uint256)",
+  "function totalAccrued() view returns (uint256)",
+  "function totalSettled() view returns (uint256)",
+  "event RewardAccrued(address indexed user,uint256 indexed creditTokenId,uint256 amount)",
+  "event RewardSettled(address indexed user,uint256 indexed creditTokenId,uint256 amount)",
+];
 
 export const chainConfigured = !!deployment;
 
@@ -62,6 +70,10 @@ export interface ChainStatus {
     uri: string;
   };
   certificates?: string;
+  mining?: {
+    totalAccruedKg: string;
+    totalSettledKg: string;
+  };
   error?: string;
 }
 
@@ -75,12 +87,16 @@ export async function getChainStatus(): Promise<ChainStatus> {
     const tid = BigInt(deployment.seedBatch?.tokenId ?? 1);
     const admin: string = deployment.admin;
 
-    const [info, circ, bal, uri, certs] = await Promise.all([
+    const mining = new ethers.Contract(deployment.contracts.MiningRewards, MINING_ABI, p);
+
+    const [info, circ, bal, uri, certs, accruedKg, settledKg] = await Promise.all([
       registry.batchInfo(tid),
       registry.circulating(tid),
       registry.balanceOf(admin, tid),
       registry.uri(tid),
       vault.totalCertificates(),
+      mining.totalAccrued(),
+      mining.totalSettled(),
     ]);
 
     return {
@@ -100,6 +116,10 @@ export async function getChainStatus(): Promise<ChainStatus> {
         uri,
       },
       certificates: certs.toString(),
+      mining: {
+        totalAccruedKg: accruedKg.toString(),
+        totalSettledKg: settledKg.toString(),
+      },
     };
   } catch (e) {
     return { connected: false, configured: true, rpc: RPC_URL, error: String(e) };
@@ -107,7 +127,14 @@ export async function getChainStatus(): Promise<ChainStatus> {
 }
 
 export interface ChainEvent {
-  kind: "BatchRegistered" | "RegistryRetiredSet" | "CreditsMinted" | "CreditsRetired" | "CertificateIssued";
+  kind:
+    | "BatchRegistered"
+    | "RegistryRetiredSet"
+    | "CreditsMinted"
+    | "CreditsRetired"
+    | "CertificateIssued"
+    | "RewardAccrued"
+    | "RewardSettled";
   tokenId: string;
   detail: string;
   amount?: string;
@@ -124,13 +151,16 @@ export async function getChainEvents(): Promise<ChainEvent[]> {
   const p = provider();
   const registry = new ethers.Contract(deployment.contracts.CreditRegistry, REGISTRY_ABI, p);
   const vault = new ethers.Contract(deployment.contracts.RetirementVault, VAULT_ABI, p);
+  const mining = new ethers.Contract(deployment.contracts.MiningRewards, MINING_ABI, p);
 
-  const [registered, attested, minted, retired, certs] = await Promise.all([
+  const [registered, attested, minted, retired, certs, accrued, settled] = await Promise.all([
     registry.queryFilter(registry.filters.BatchRegistered(), 0),
     registry.queryFilter(registry.filters.RegistryRetiredSet(), 0),
     registry.queryFilter(registry.filters.CreditsMinted(), 0),
     registry.queryFilter(registry.filters.CreditsRetired(), 0),
     vault.queryFilter(vault.filters.CreditsRetired(), 0),
+    mining.queryFilter(mining.filters.RewardAccrued(), 0),
+    mining.queryFilter(mining.filters.RewardSettled(), 0),
   ]);
 
   const blockCache = new Map<number, number>();
@@ -180,7 +210,39 @@ export async function getChainEvents(): Promise<ChainEvent[]> {
     });
   }
 
+  for (const e of accrued as ethers.EventLog[]) {
+    out.push({
+      kind: "RewardAccrued", tokenId: e.args.creditTokenId.toString(),
+      detail: `Mining grant anchored · ${e.args.amount} kg CO₂e → ${e.args.user.slice(0, 8)}…`,
+      amount: e.args.amount.toString(), address: e.args.user,
+      txHash: e.transactionHash, blockNumber: e.blockNumber, timestamp: await ts(e.blockNumber),
+    });
+  }
+  for (const e of settled as ethers.EventLog[]) {
+    out.push({
+      kind: "RewardSettled", tokenId: e.args.creditTokenId.toString(),
+      detail: `Mining rewards settled to ${e.args.user.slice(0, 8)}…`,
+      amount: e.args.amount.toString(), address: e.args.user,
+      txHash: e.transactionHash, blockNumber: e.blockNumber, timestamp: await ts(e.blockNumber),
+    });
+  }
+
   return out.sort((a, b) => b.blockNumber - a.blockNumber || b.timestamp - a.timestamp);
+}
+
+/// Anchors a mining conversion on-chain: MiningRewards.accrue() records the netted
+/// grant (denominated in kg CO₂e = 0.001 credit, so fractional conversions stay
+/// integral) against the platform custodial address. Off-chain (Postgres) remains
+/// authoritative; this event trail makes every grant publicly auditable.
+export async function accrueMiningReward(amountKg: number): Promise<{ txHash: string; blockNumber: number }> {
+  if (!deployment) throw new Error("No deployment. Run the contracts deploy script first.");
+  if (!(amountKg > 0)) throw new Error("amountKg must be > 0");
+  const signer = adminSigner();
+  const mining = new ethers.Contract(deployment.contracts.MiningRewards, MINING_ABI, signer);
+  const tid = BigInt(deployment.seedBatch?.tokenId ?? 1);
+  const tx = await mining.accrue(deployment.admin, tid, BigInt(Math.round(amountKg)));
+  const receipt = await tx.wait();
+  return { txHash: tx.hash, blockNumber: receipt.blockNumber };
 }
 
 export interface RetireResult {

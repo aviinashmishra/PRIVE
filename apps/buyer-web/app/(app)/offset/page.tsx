@@ -12,7 +12,7 @@ import { Leaf, ShieldCheck, Download, ExternalLink, Flame, Award, Globe2, Databa
 export default function OffsetPage() {
   const holdings = useStore((s) => s.holdings);
   const markets = useStore((s) => s.markets);
-  const burnCredits = useStore((s) => s.burnCredits);
+  const applyWallet = useStore((s) => s.applyWallet);
   const platformRetired = useStore((s) => s.platformRetired);
 
   const [symbol, setSymbol] = useState(holdings[0]?.symbol ?? "");
@@ -52,15 +52,15 @@ export default function OffsetPage() {
     if (!symbol || q <= 0) { toast.error("Select an amount to retire"); return; }
     if (!selected || q > selected.qty) { toast.error("Insufficient balance", `You hold ${fmtQty(selected?.qty ?? 0)} t.`); return; }
     setSubmitting(true);
-    const burned = burnCredits(symbol, q);
-    if (!burned) { setSubmitting(false); toast.error("Retirement failed"); return; }
     try {
-      const rec = await postRetirement({ symbol, name: market?.name ?? symbol, qty: q, beneficiary });
+      // the server burns the credits from the wallet, then mints the certificate
+      const { rec, wallet } = await postRetirement({ symbol, name: market?.name ?? symbol, qty: q, beneficiary });
+      if (wallet) applyWallet(wallet.usd, wallet.holdings);
       setCerts((prev) => [rec, ...prev]);
       toast.success(`Retired ${fmtQty(q)} tCO₂e`, `Certificate ${rec.certId} minted on-chain`);
       setQty("");
     } catch (e) {
-      toast.error("Could not save certificate", String(e));
+      toast.error("Retirement failed", e instanceof Error ? e.message : String(e));
     } finally {
       setSubmitting(false);
     }

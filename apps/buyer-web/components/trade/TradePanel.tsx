@@ -3,21 +3,23 @@
 import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { toast } from "@/components/ui/Toast";
-import { postOrder } from "@/lib/api";
+import { placeOrderApi } from "@/lib/api";
 import { fmtUsd, fmtPrice, fmtQty, clsx } from "@/lib/format";
-import { Leaf } from "lucide-react";
+import { Leaf, Loader2 } from "lucide-react";
 
 export function TradePanel({ symbol, pickedPrice }: { symbol: string; pickedPrice: number | null }) {
   const m = useStore((s) => s.bySymbol(symbol));
   const usd = useStore((s) => s.usd);
   const holdingQty = useStore((s) => s.holdingQty(symbol));
-  const placeOrder = useStore((s) => s.placeOrder);
-  const linkRemoteOrder = useStore((s) => s.linkRemoteOrder);
+  const applyWallet = useStore((s) => s.applyWallet);
+  const pushTrade = useStore((s) => s.pushTrade);
+  const recordOrder = useStore((s) => s.recordOrder);
 
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [type, setType] = useState<"limit" | "market">("limit");
   const [price, setPrice] = useState("");
   const [qty, setQty] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (m && price === "") setPrice(m.price.toFixed(2));
@@ -41,20 +43,46 @@ export function TradePanel({ symbol, pickedPrice }: { symbol: string; pickedPric
     setQty(target > 0 ? target.toFixed(2) : "");
   };
 
-  const submit = () => {
-    const res = placeOrder(m.pair, side, type, parseFloat(price) || 0, q);
-    if (res.ok) {
-      toast.success(res.message, res.filled ? `Fee ${fmtUsd(fee)} · CO₂ ${fmtQty(q)} t` : undefined);
-      // best-effort persist to the backend order history (Neon or in-memory);
-      // resting orders keep the backend id so a cancel propagates server-side too
-      void postOrder({ pair: m.pair, side, type, price: res.avgPrice ?? p, qty: q, status: res.filled ? "filled" : "open" }).then(
-        (remoteId) => {
-          if (remoteId && res.orderId) linkRemoteOrder(res.orderId, remoteId);
+  // Server-settled: the backend validates, debits/credits the account wallet and
+  // returns the updated balances — the UI only mirrors the result.
+  const submit = async () => {
+    if (submitting) return;
+    if (!(q > 0)) { toast.error("Enter a quantity."); return; }
+    if (type === "limit" && !(parseFloat(price) > 0)) { toast.error("Enter a limit price."); return; }
+    setSubmitting(true);
+    try {
+      const res = await placeOrderApi({ pair: m.pair, side, type, price: type === "market" ? m.price : parseFloat(price) || 0, qty: q });
+      if (!res.ok || !res.order) {
+        toast.error("Order rejected", res.error);
+        return;
+      }
+      if (res.wallet) applyWallet(res.wallet.usd, res.wallet.holdings);
+      recordOrder(
+        {
+          id: res.order.id,
+          pair: m.pair,
+          side,
+          type,
+          price: res.order.price,
+          qty: q,
+          filled: res.filled ? q : 0,
+          time: Date.now(),
+          status: res.filled ? "filled" : "open",
         },
+        res.filled ? undefined : res.order.id,
       );
+      if (res.filled) {
+        pushTrade(symbol, res.order.price, q, side);
+        toast.success(
+          `${side === "buy" ? "Bought" : "Sold"} ${fmtQty(q)} ${symbol} @ ${res.order.price.toFixed(2)}`,
+          `Fee ${fmtUsd(fee)} · CO₂ ${fmtQty(q)} t`,
+        );
+      } else {
+        toast.success(`Limit ${side} order placed · ${fmtQty(q)} ${symbol} @ ${res.order.price.toFixed(2)}`);
+      }
       setQty("");
-    } else {
-      toast.error("Order rejected", res.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -154,12 +182,13 @@ export function TradePanel({ symbol, pickedPrice }: { symbol: string; pickedPric
 
       <button
         onClick={submit}
-        disabled={!(q > 0)}
+        disabled={!(q > 0) || submitting}
         className={clsx(
           "btn w-full py-3 text-white",
           side === "buy" ? "bg-brand-600 hover:bg-brand-700 shadow-glow" : "bg-down hover:brightness-95",
         )}
       >
+        {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         {side === "buy" ? "Buy" : "Sell"} {symbol}
       </button>
       <p className="mt-2 text-[11px] text-ink-faint text-center">Gasless · settles on Polygon in ~90s</p>

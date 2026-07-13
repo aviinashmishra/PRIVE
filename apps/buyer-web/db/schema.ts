@@ -7,6 +7,7 @@ import {
   timestamp,
   smallint,
   index,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 // Phase-1 subset aligned with /docs/02-data-model.md. A single physical schema here
@@ -178,6 +179,50 @@ export const ticketMessages = pgTable(
   },
   (t) => ({ byTicket: index("ticket_messages_ticket_idx").on(t.ticketId, t.createdAt) }),
 );
+
+// ------------------------------ Wallet ------------------------------
+
+// Server-authoritative credit wallet: one row per (account, symbol). USD cash
+// lives on accounts.usd_balance; this table holds the tonne-denominated credits
+// (bought on the exchange or minted from mining conversions).
+export const holdings = pgTable(
+  "holdings",
+  {
+    accountId: uuid("account_id").notNull(),
+    symbol: text("symbol").notNull(),
+    qty: numeric("qty", { precision: 24, scale: 4 }).notNull().default("0"),
+    avgCost: numeric("avg_cost", { precision: 20, scale: 4 }).notNull().default("0"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.accountId, t.symbol] }) }),
+);
+
+export type HoldingRow = typeof holdings.$inferSelect;
+
+// ------------------------------ Green Mining ------------------------------
+
+// One row per proof-of-green-action (positive points) or conversion
+// (negative points + minted credits). All mining stats derive from here.
+export const miningEvents = pgTable(
+  "mining_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: uuid("account_id").notNull(),
+    kind: text("kind").notNull().default("action"), // action | convert
+    actionKey: text("action_key").notNull(),
+    label: text("label").notNull(),
+    points: integer("points").notNull(),
+    credits: numeric("credits", { precision: 24, scale: 4 }).notNull().default("0"),
+    txHash: text("tx_hash"), // set when the grant is anchored on-chain (MiningRewards.accrue)
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    byAccount: index("mining_events_account_idx").on(t.accountId, t.createdAt),
+    byAction: index("mining_events_action_idx").on(t.accountId, t.actionKey, t.createdAt),
+  }),
+);
+
+export type MiningEventRow = typeof miningEvents.$inferSelect;
 
 export type UserRow = typeof users.$inferSelect;
 export type SessionRow = typeof sessions.$inferSelect;

@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   CandlestickChart,
   Wallet,
+  BarChart3,
   Pickaxe,
   Leaf,
   ArrowLeftRight,
@@ -20,7 +21,8 @@ const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/markets", label: "Markets", icon: CandlestickChart },
   { href: "/trade/AMZN-RF25", label: "Trade", icon: ArrowLeftRight, match: "/trade" },
-  { href: "/portfolio", label: "Portfolio", icon: Wallet },
+  { href: "/portfolio", label: "Portfolio", icon: BarChart3 },
+  { href: "/wallet", label: "Wallet", icon: Wallet },
   { href: "/mining", label: "Mining", icon: Pickaxe },
   { href: "/offset", label: "Offset", icon: Leaf },
 ];

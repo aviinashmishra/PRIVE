@@ -84,7 +84,7 @@ export function MobileNav() {
     { href: "/dashboard", label: "Home" },
     { href: "/markets", label: "Markets" },
     { href: "/trade/AMZN-RF25", label: "Trade", match: "/trade" },
-    { href: "/portfolio", label: "Wallet" },
+    { href: "/wallet", label: "Wallet" },
     { href: "/mining", label: "Mine" },
   ];
   return (

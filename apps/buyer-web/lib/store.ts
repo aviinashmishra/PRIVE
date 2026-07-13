@@ -93,6 +93,11 @@ interface State {
   holdingQty: (s: string) => number;
   portfolioValue: () => number;
 
+  walletSynced: boolean; // true once the server wallet has hydrated this store
+  applyWallet: (usd: number, holdings: Holding[]) => void;
+  pushTrade: (symbol: string, price: number, size: number, side: "buy" | "sell") => void;
+  recordOrder: (order: OpenOrder, remoteId?: string) => void;
+
   tick: () => void;
   placeOrder: (
     pair: string,
@@ -136,6 +141,30 @@ export const useStore = create<State>((set, get) => ({
   ],
   platformRetired: 4_812_664,
   live: false,
+
+  walletSynced: false,
+
+  // Replaces the local cash/holdings with the server-authoritative wallet. Called
+  // on app mount and after any server-settled mutation (order, convert, retire).
+  applyWallet: (usd, holdings) => {
+    set({ usd, holdings: holdings.map((h) => ({ ...h })), walletSynced: true });
+  },
+
+  pushTrade: (symbol, price, size, side) => {
+    set((state) => {
+      const t: Trade = { id: uid("t"), price, size, side, time: Date.now() };
+      return { trades: { ...state.trades, [symbol]: [t, ...(state.trades[symbol] || [])].slice(0, 40) } };
+    });
+  },
+
+  // Mirrors a server-settled order into the local open-orders widget; resting
+  // orders keep the backend id so a cancel propagates server-side.
+  recordOrder: (order, remoteId) => {
+    set((state) => ({
+      openOrders: [order, ...state.openOrders],
+      remoteOrderIds: remoteId ? { ...state.remoteOrderIds, [order.id]: remoteId } : state.remoteOrderIds,
+    }));
+  },
 
   bySymbol: (s) => get().markets.find((m) => m.symbol === s),
   holdingQty: (s) => get().holdings.find((h) => h.symbol === s)?.qty ?? 0,
