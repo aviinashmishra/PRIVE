@@ -27,6 +27,9 @@ const PUBLIC_API_PREFIXES = [
 
 const AUTH_PAGES = new Set(["/login", "/signup", "/verify-email", "/forgot-password", "/reset-password"]);
 
+// Trader-portal pages — buyers only (sellers/admins are redirected to their home).
+const BUYER_PREFIXES = ["/dashboard", "/markets", "/trade", "/portfolio", "/wallet", "/mining", "/offset"];
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -54,12 +57,19 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(login);
   }
 
-  // Role gates. Admins may enter every portal (mission control oversees both).
+  // Strict role gates: each role lands in its own portal. Hitting another
+  // portal's pages redirects to the user's home. /support and /settings are
+  // shared utilities available to every authenticated role.
+  const home = new URL(HOME_BY_ROLE[claims.role] ?? "/dashboard", req.url);
   if (pathname.startsWith("/admin") && claims.role !== "admin") {
-    return NextResponse.redirect(new URL(HOME_BY_ROLE[claims.role] ?? "/dashboard", req.url));
+    return NextResponse.redirect(home);
   }
-  if (pathname.startsWith("/seller") && claims.role !== "seller" && claims.role !== "admin") {
-    return NextResponse.redirect(new URL(HOME_BY_ROLE[claims.role] ?? "/dashboard", req.url));
+  if (pathname.startsWith("/seller") && claims.role !== "seller") {
+    return NextResponse.redirect(home);
+  }
+  const isBuyerPage = BUYER_PREFIXES.some((p) => pathname.startsWith(p));
+  if (isBuyerPage && claims.role !== "buyer") {
+    return NextResponse.redirect(home);
   }
 
   return NextResponse.next();

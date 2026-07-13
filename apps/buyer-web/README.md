@@ -112,9 +112,9 @@ npm run dev
 - Works with **any Postgres**, not just Neon: non-`neon.tech` URLs automatically use the
   node-postgres driver (this is how the Docker stack connects).
 
-**No `DATABASE_URL`?** The app still runs — API routes fall back to an in-memory store, and the
-Offset page shows an "In-memory" badge instead of "Persisting to Neon". Drop in the URL and the
-same code path persists to Postgres with zero changes.
+**No `DATABASE_URL`?** The app still runs — API routes fall back to an in-memory store
+(`/api/health` reports `"database": "memory"`). Drop in the URL and the same code path
+persists to Postgres with zero changes.
 
 Schema (`db/schema.ts`) and migration mirror the production data model in
 [`/docs/02-data-model.md`](../../docs/02-data-model.md).

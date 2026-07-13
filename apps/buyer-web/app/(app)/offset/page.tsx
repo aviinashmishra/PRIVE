@@ -4,10 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { useStore } from "@/lib/store";
 import { toast } from "@/components/ui/Toast";
 import { StatCard } from "@/components/ui/StatCard";
-import { getRetirements, postRetirement, getHealth, ApiRetirement } from "@/lib/api";
+import { getRetirements, postRetirement, ApiRetirement } from "@/lib/api";
 import { ChainPanel } from "@/components/chain/ChainPanel";
-import { fmtQty, fmtUsd, fmtCompact, timeAgo, clsx } from "@/lib/format";
-import { Leaf, ShieldCheck, Download, ExternalLink, Flame, Award, Globe2, Database, Loader2 } from "lucide-react";
+import { fmtQty, fmtUsd, fmtCompact, timeAgo } from "@/lib/format";
+import { Leaf, ShieldCheck, Download, ExternalLink, Flame, Award, Globe2, Loader2 } from "lucide-react";
 
 export default function OffsetPage() {
   const holdings = useStore((s) => s.holdings);
@@ -21,7 +21,6 @@ export default function OffsetPage() {
   const [certs, setCerts] = useState<ApiRetirement[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [dbMode, setDbMode] = useState<string>("");
 
   const selected = holdings.find((h) => h.symbol === symbol);
   const market = markets.find((m) => m.symbol === symbol);
@@ -30,9 +29,8 @@ export default function OffsetPage() {
 
   const refresh = useCallback(async () => {
     try {
-      const [rows, health] = await Promise.all([getRetirements(), getHealth()]);
+      const rows = await getRetirements();
       setCerts(rows);
-      setDbMode(health.database);
     } catch {
       /* keep prior state */
     } finally {
@@ -73,12 +71,6 @@ export default function OffsetPage() {
           <h2 className="font-display text-2xl font-semibold text-ink">Carbon Offset</h2>
           <p className="text-sm text-ink-soft mt-1">Retire credits to permanently offset emissions. Each retirement burns the token on-chain and mints a certificate.</p>
         </div>
-        {dbMode && (
-          <span className={clsx("chip", dbMode === "neon" ? "!border-brand-200 !text-brand-700 !bg-brand-50" : "")}>
-            <Database className="h-3.5 w-3.5" />
-            {dbMode === "neon" ? "Persisting to Neon" : "In-memory (set DATABASE_URL for Neon)"}
-          </span>
-        )}
       </div>
 
       {/* real on-chain layer: reads contract state + executes genuine burn txs */}

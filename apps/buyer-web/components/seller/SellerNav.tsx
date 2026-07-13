@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/ui/Logo";
-import { PortalSwitcher } from "@/components/ui/PortalSwitcher";
 import { UserMenu } from "@/components/ui/UserMenu";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { clsx } from "@/lib/format";
@@ -31,7 +30,6 @@ export function SellerNav() {
               <p className="text-[11px] text-ink-faint">KYB verified · Project Developer</p>
             </div>
             <ThemeToggle />
-            <PortalSwitcher current="seller" />
             <UserMenu />
           </div>
         </div>

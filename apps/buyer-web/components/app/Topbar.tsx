@@ -6,7 +6,6 @@ import { useStore } from "@/lib/store";
 import { fmtUsd, fmtCompact, clsx } from "@/lib/format";
 import { Search, Bell, Leaf } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
-import { PortalSwitcher } from "@/components/ui/PortalSwitcher";
 import { UserMenu } from "@/components/ui/UserMenu";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
@@ -66,10 +65,6 @@ export function Topbar() {
           </div>
 
           <ThemeToggle />
-
-          <div className="hidden sm:block">
-            <PortalSwitcher current="buyer" />
-          </div>
 
           <UserMenu />
         </div>

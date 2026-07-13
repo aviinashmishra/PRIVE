@@ -58,6 +58,24 @@ for (const [email, password, name, role, accountId] of users) {
   `;
 }
 
+// Owner admin login — upserted (not DO NOTHING) so the admin role and password
+// are enforced even if this email signed up earlier with another role.
+console.log("→ Seeding owner admin…");
+const ownerEmail = "avimishra8354@gmail.com";
+const ownerHash = await hash(process.env.SEED_OWNER_PASSWORD || "Av!@1234", ARGON2);
+await sql`
+  INSERT INTO users (email, password_hash, display_name, role, account_id, email_verified_at)
+  VALUES (${ownerEmail}, ${ownerHash}, 'Avinash Mishra', 'admin', ${ADMIN_ACCOUNT_ID}, now())
+  ON CONFLICT (email) DO UPDATE
+    SET password_hash = EXCLUDED.password_hash,
+        role = 'admin',
+        account_id = EXCLUDED.account_id,
+        email_verified_at = now(),
+        failed_attempts = 0,
+        locked_until = NULL,
+        updated_at = now()
+`;
+
 console.log(`→ Seeding ${markets.length} markets…`);
 for (const m of markets) {
   await sql`

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PortalSwitcher } from "@/components/ui/PortalSwitcher";
 import { UserMenu } from "@/components/ui/UserMenu";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { clsx } from "@/lib/format";
@@ -84,7 +83,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3">
             <span className="admin-chip hidden md:inline-flex">⌘K</span>
             <ThemeToggle dark />
-            <PortalSwitcher current="admin" dark />
             <UserMenu dark />
           </div>
         </header>
