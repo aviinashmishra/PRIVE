@@ -38,5 +38,7 @@ export function authSecret(): Uint8Array {
 }
 
 export function appUrl(): string {
-  return process.env.APP_URL || "http://localhost:3000";
+  // RENDER_EXTERNAL_URL is injected by Render automatically, so emailed links
+  // (password reset, verification) work even before APP_URL is configured.
+  return process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "http://localhost:3000";
 }

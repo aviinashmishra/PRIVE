@@ -101,9 +101,18 @@ export default function ExplorerPage() {
             <CircleOff className="h-8 w-8 text-ink-faint mx-auto mb-3" />
             <h2 className="font-semibold text-ink mb-1">Chain node offline</h2>
             <p className="text-sm text-ink-soft max-w-md mx-auto">
-              The explorer reads a live node over JSON-RPC. Start the local chain
-              (<span className="tnum">npm run node</span> + <span className="tnum">npm run deploy:local</span> in
-              /contracts) or point CHAIN_RPC_URL at a public network.
+              {process.env.NODE_ENV === "development" ? (
+                <>
+                  The explorer reads a live node over JSON-RPC. Start the local chain
+                  (<span className="tnum">npm run node</span> + <span className="tnum">npm run deploy:local</span> in
+                  /contracts) or point CHAIN_RPC_URL at a public network.
+                </>
+              ) : (
+                <>
+                  The explorer reads the ledger's node directly over JSON-RPC. The node is
+                  not reachable right now — the audit trail will reappear as soon as it is.
+                </>
+              )}
             </p>
           </div>
         ) : (

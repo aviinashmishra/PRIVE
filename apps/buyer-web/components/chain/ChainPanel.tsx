@@ -42,10 +42,12 @@ export function ChainPanel({ onStatus }: { onStatus?: (s: ChainStatus) => void }
           <h3 className="font-semibold text-ink">On-chain layer offline</h3>
         </div>
         <p className="text-xs text-ink-soft leading-relaxed">
-          {!status.configured
-            ? "Contracts not deployed yet. From /contracts run: npm run node (terminal 1), then npm run deploy:local (terminal 2)."
-            : `Deployed but the RPC node isn't reachable (${status.error?.slice(0, 80)}…). Start it with: npm run node in /contracts.`}
-          {" "}Retirements placed while the chain is offline are recorded on the ledger and shown without a transaction hash.
+          {process.env.NODE_ENV === "development"
+            ? !status.configured
+              ? "Contracts not deployed yet. From /contracts run: npm run node (terminal 1), then npm run deploy:local (terminal 2). "
+              : `Deployed but the RPC node isn't reachable (${status.error?.slice(0, 80)}…). Start it with: npm run node in /contracts. `
+            : "The on-chain anchor is not connected right now. "}
+          Retirements placed while the chain is offline are recorded on the ledger and shown without a transaction hash.
         </p>
       </div>
     );
