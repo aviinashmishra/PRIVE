@@ -43,10 +43,12 @@ const memSessions = new Map<string, SessionRecord>();
 const memTokens: TokenRecord[] = [];
 let memSeeded: Promise<void> | null = null;
 
-// Mirror db/seed.mjs so the no-DB demo has the same three logins.
+// Mirror db/seed.mjs so the no-DB fallback has the same logins as a seeded
+// database — including the owner admin, so that login works in every mode.
 function seedMemory(): Promise<void> {
   memSeeded ??= (async () => {
     const demo: Array<[string, string, string, Role, string]> = [
+      ["avimishra8354@gmail.com", process.env.SEED_OWNER_PASSWORD || "Av!@1234", "Avinash Mishra", "admin", "00000000-0000-4000-8000-000000000003"],
       ["admin@prive.exchange", process.env.SEED_ADMIN_PASSWORD || "Admin!Prive2026", "Prive Admin", "admin", "00000000-0000-4000-8000-000000000003"],
       ["trader@prive.exchange", process.env.SEED_TRADER_PASSWORD || "Trader!Prive2026", "Oz (Demo Trader)", "buyer", "00000000-0000-4000-8000-000000000001"],
       ["seller@prive.exchange", process.env.SEED_SELLER_PASSWORD || "Seller!Prive2026", "Verdant Terra Ltd", "seller", "00000000-0000-4000-8000-000000000002"],
