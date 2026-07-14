@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     let txHash: string | null = null;
-    if (chainConfigured) {
+    if (chainConfigured()) {
       try {
         const anchored = await accrueMiningReward(result.credits * 1000); // credits → kg
         txHash = anchored.txHash;

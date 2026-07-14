@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const { error } = await requireAuth();
   if (error) return error;
-  if (!chainConfigured) {
+  if (!chainConfigured()) {
     return NextResponse.json(
       { error: "On-chain layer not deployed. Run the contracts deploy script (see contracts/README.md)." },
       { status: 503 },

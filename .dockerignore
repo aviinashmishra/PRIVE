@@ -9,8 +9,14 @@
 **/.env.*
 !**/.env.example
 
+# contracts: only sources + config are needed (the contracts stage compiles them)
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+contracts/deployments/
+contracts/test/
+
 # not needed to build the web app
-contracts/
 docs/
 api/
 **/tsconfig.tsbuildinfo

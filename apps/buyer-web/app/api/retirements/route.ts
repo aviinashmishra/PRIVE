@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     let certId = "";
     let txHash = "";
     let status = "recorded";
-    if (chainConfigured) {
+    if (chainConfigured()) {
       try {
         const anchored = await retireOnChain(Math.ceil(qty), beneficiary);
         certId = `PRV-CERT-${anchored.certificateId}`;

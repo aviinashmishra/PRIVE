@@ -7,7 +7,8 @@ const nextConfig = {
     // Native/binary packages must stay external to the webpack server bundle.
     // @neondatabase/serverless must also be external so the standalone trace
     // ships it as a package — db/conn.mjs (boot migrations) imports it by name.
-    serverComponentsExternalPackages: ["@node-rs/argon2", "pg", "@neondatabase/serverless"],
+    // Same for ethers: chain/deploy.mjs (boot chain deploy) imports it by name.
+    serverComponentsExternalPackages: ["@node-rs/argon2", "pg", "@neondatabase/serverless", "ethers"],
   },
 };
 

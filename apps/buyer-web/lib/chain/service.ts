@@ -1,13 +1,32 @@
 import "server-only";
 import { ethers } from "ethers";
+import { readFileSync } from "fs";
+import { join } from "path";
 
-// Reads the deployment written by contracts/scripts/deploy.ts. Present only after a deploy.
-let deployment: any = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  deployment = require("./deployment.json");
-} catch {
-  deployment = null;
+// The deployment descriptor is written by contracts/scripts/deploy.ts (dev) or by
+// chain/deploy.mjs at container boot (embedded anvil in production). It must be
+// read at RUNTIME — a build-time require would freeze whatever was in the repo
+// when the image was built, not what the entrypoint deployed.
+const DEPLOYMENT_CANDIDATES = [
+  process.env.CHAIN_DEPLOYMENT_FILE,
+  join(process.cwd(), "chain", "deployment.json"), // Docker runner (written at boot)
+  join(process.cwd(), "lib", "chain", "deployment.json"), // dev checkout
+].filter((p): p is string => !!p);
+
+let cached: { deployment: any; at: number } | null = null;
+function getDeployment(): any {
+  if (cached && Date.now() - cached.at < 5_000) return cached.deployment;
+  let deployment: any = null;
+  for (const p of DEPLOYMENT_CANDIDATES) {
+    try {
+      deployment = JSON.parse(readFileSync(p, "utf8"));
+      break;
+    } catch {
+      /* try next */
+    }
+  }
+  cached = { deployment, at: Date.now() };
+  return deployment;
 }
 
 // Local Hardhat default account #0 — a PUBLICLY KNOWN key, safe for local dev only.
@@ -44,7 +63,9 @@ const MINING_ABI = [
   "event RewardSettled(address indexed user,uint256 indexed creditTokenId,uint256 amount)",
 ];
 
-export const chainConfigured = !!deployment;
+export function chainConfigured(): boolean {
+  return !!getDeployment();
+}
 
 function provider() {
   return new ethers.JsonRpcProvider(RPC_URL);
@@ -78,6 +99,7 @@ export interface ChainStatus {
 }
 
 export async function getChainStatus(): Promise<ChainStatus> {
+  const deployment = getDeployment();
   if (!deployment) return { connected: false, configured: false };
   try {
     const p = provider();
@@ -147,6 +169,7 @@ export interface ChainEvent {
 /// Reads the REAL event log from the chain — the Transparency Explorer's data source.
 /// Anyone can audit the full lifecycle: registration → attestation → mint → retirement.
 export async function getChainEvents(): Promise<ChainEvent[]> {
+  const deployment = getDeployment();
   if (!deployment) return [];
   const p = provider();
   const registry = new ethers.Contract(deployment.contracts.CreditRegistry, REGISTRY_ABI, p);
@@ -235,6 +258,7 @@ export async function getChainEvents(): Promise<ChainEvent[]> {
 /// integral) against the platform custodial address. Off-chain (Postgres) remains
 /// authoritative; this event trail makes every grant publicly auditable.
 export async function accrueMiningReward(amountKg: number): Promise<{ txHash: string; blockNumber: number }> {
+  const deployment = getDeployment();
   if (!deployment) throw new Error("No deployment. Run the contracts deploy script first.");
   if (!(amountKg > 0)) throw new Error("amountKg must be > 0");
   const signer = adminSigner();
@@ -256,6 +280,7 @@ export interface RetireResult {
 /// Performs a REAL on-chain retirement: burns `amount` of the seed batch held by the admin
 /// account and mints a certificate NFT. Returns the transaction hash + certificate id.
 export async function retireOnChain(amount: number, beneficiary: string, cid = "bafyPriveCert"): Promise<RetireResult> {
+  const deployment = getDeployment();
   if (!deployment) throw new Error("No deployment. Run the contracts deploy script first.");
   const signer = adminSigner();
   const vault = new ethers.Contract(deployment.contracts.RetirementVault, VAULT_ABI, signer);
