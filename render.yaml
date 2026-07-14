@@ -54,6 +54,16 @@ services:
         sync: false
       - key: SEED_SELLER_PASSWORD
         sync: false
+      # Owner admin (avimishra8354@gmail.com) — leave unset to keep the seeded default.
+      - key: SEED_OWNER_PASSWORD
+        sync: false
+      # Optional on-chain anchor: point at a JSON-RPC node (e.g. Polygon Amoy) and
+      # provide the settler key. Unset = retirements/mining record off-chain and
+      # anchor later — the app degrades gracefully.
+      - key: CHAIN_RPC_URL
+        sync: false
+      - key: CHAIN_ADMIN_KEY
+        sync: false
 
 databases:
   - name: prive-db

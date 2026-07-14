@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { toast } from "@/components/ui/Toast";
 import { StatCard } from "@/components/ui/StatCard";
-import { getRetirements, postRetirement, ApiRetirement } from "@/lib/api";
+import { getRetirements, postRetirement, ApiRetirement, ChainStatus } from "@/lib/api";
 import { ChainPanel } from "@/components/chain/ChainPanel";
+import { downloadCertificatePdf } from "@/lib/certificate";
 import { fmtQty, fmtUsd, fmtCompact, timeAgo } from "@/lib/format";
 import { Leaf, ShieldCheck, Download, ExternalLink, Flame, Award, Globe2, Loader2 } from "lucide-react";
 
@@ -13,7 +15,6 @@ export default function OffsetPage() {
   const holdings = useStore((s) => s.holdings);
   const markets = useStore((s) => s.markets);
   const applyWallet = useStore((s) => s.applyWallet);
-  const platformRetired = useStore((s) => s.platformRetired);
 
   const [symbol, setSymbol] = useState(holdings[0]?.symbol ?? "");
   const [qty, setQty] = useState("");
@@ -21,6 +22,8 @@ export default function OffsetPage() {
   const [certs, setCerts] = useState<ApiRetirement[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [chain, setChain] = useState<ChainStatus | null>(null);
+  const onChainStatus = useCallback((s: ChainStatus) => setChain(s), []);
 
   const selected = holdings.find((h) => h.symbol === symbol);
   const market = markets.find((m) => m.symbol === symbol);
@@ -55,7 +58,12 @@ export default function OffsetPage() {
       const { rec, wallet } = await postRetirement({ symbol, name: market?.name ?? symbol, qty: q, beneficiary });
       if (wallet) applyWallet(wallet.usd, wallet.holdings);
       setCerts((prev) => [rec, ...prev]);
-      toast.success(`Retired ${fmtQty(q)} tCO₂e`, `Certificate ${rec.certId} minted on-chain`);
+      toast.success(
+        `Retired ${fmtQty(q)} tCO₂e`,
+        rec.txHash
+          ? `Certificate ${rec.certId} minted on-chain · tx ${rec.txHash.slice(0, 10)}…`
+          : `Certificate ${rec.certId} recorded — on-chain anchor pending (chain offline)`,
+      );
       setQty("");
     } catch (e) {
       toast.error("Retirement failed", e instanceof Error ? e.message : String(e));
@@ -73,13 +81,18 @@ export default function OffsetPage() {
         </div>
       </div>
 
-      {/* real on-chain layer: reads contract state + executes genuine burn txs */}
-      <ChainPanel />
+      {/* real on-chain layer: live contract state read over JSON-RPC */}
+      <ChainPanel onStatus={onChainStatus} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="You've retired" value={`${fmtQty(myRetired)} t`} sub={`${certs.length} certificates`} icon={<Award className="h-4 w-4" />} tone="brand" />
         <StatCard label="Retirable now" value={`${fmtCompact(holdings.reduce((a, h) => a + h.qty, 0))} t`} sub="across holdings" icon={<Leaf className="h-4 w-4" />} />
-        <StatCard label="Platform total" value={`${fmtCompact(platformRetired)} t`} sub="CO₂ retired on Prive" icon={<Globe2 className="h-4 w-4" />} />
+        <StatCard
+          label="Platform total"
+          value={chain?.batch ? `${fmtCompact(Number(chain.batch.totalRetired))} t` : "—"}
+          sub={chain?.batch ? "burned on-chain" : "chain offline"}
+          icon={<Globe2 className="h-4 w-4" />}
+        />
         <StatCard label="Est. cars off road" value={fmtCompact(myRetired / 4.6)} sub="for a year" icon={<Flame className="h-4 w-4" />} />
       </div>
 
@@ -169,7 +182,13 @@ export default function OffsetPage() {
                         <p className="text-xs text-ink-faint mt-0.5">{r.beneficiary} · {timeAgo(r.time)}</p>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-ink-soft">
                           <span className="tnum">Cert <b className="text-ink">{r.certId}</b></span>
-                          <span className="tnum">Tx <b className="text-ink">{r.txHash}</b></span>
+                          {r.txHash ? (
+                            <span className="tnum" title={r.txHash}>
+                              Tx <b className="text-ink">{r.txHash.slice(0, 10)}…{r.txHash.slice(-6)}</b>
+                            </span>
+                          ) : (
+                            <span className="text-amber-700">On-chain anchor pending</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -179,12 +198,14 @@ export default function OffsetPage() {
                     </div>
                   </div>
                   <div className="flex gap-2 mt-4">
-                    <button onClick={() => toast.info("Certificate PDF", "Download would begin in production.")} className="btn-ghost !py-1.5 !px-3 text-xs border border-line">
+                    <button onClick={() => downloadCertificatePdf(r)} className="btn-ghost !py-1.5 !px-3 text-xs border border-line">
                       <Download className="h-3.5 w-3.5" /> PDF
                     </button>
-                    <button onClick={() => toast.info("Opening explorer", `Tx ${r.txHash}`)} className="btn-ghost !py-1.5 !px-3 text-xs border border-line">
-                      <ExternalLink className="h-3.5 w-3.5" /> View on-chain
-                    </button>
+                    {r.txHash && (
+                      <Link href={`/explorer?tx=${r.txHash}`} target="_blank" className="btn-ghost !py-1.5 !px-3 text-xs border border-line">
+                        <ExternalLink className="h-3.5 w-3.5" /> View on-chain
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))}

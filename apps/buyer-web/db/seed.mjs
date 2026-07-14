@@ -85,15 +85,8 @@ for (const m of markets) {
   `;
 }
 
-// A starter certificate so the offset page shows real DB rows immediately.
-console.log("→ Seeding a sample retirement…");
-const existingRet = await sql`SELECT id FROM retirements WHERE cert_id = 'PRV-CERT-8814' LIMIT 1`;
-if (existingRet.length === 0) {
-  await sql`
-    INSERT INTO retirements (account_id, symbol, name, qty, beneficiary, cert_id, tx_hash, status)
-    VALUES (${DEMO_ACCOUNT_ID}, 'AMZN-RF25', 'Amazon Reforestation', 120, 'Personal · FY2025', 'PRV-CERT-8814', '0x7a1c…e93f', 'confirmed')
-  `;
-}
+// Clean up the placeholder certificate earlier seeds inserted (fabricated tx hash).
+await sql`DELETE FROM retirements WHERE cert_id = 'PRV-CERT-8814'`;
 
 // Seller projects across the verification pipeline (drives seller + admin dashboards).
 const projects = [

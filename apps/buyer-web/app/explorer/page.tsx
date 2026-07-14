@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -27,12 +27,22 @@ const KIND_META: Record<string, { label: string; icon: any; tone: string }> = {
   CreditsMinted: { label: "Credits minted", icon: Coins, tone: "text-brand-700 bg-brand-50" },
   CreditsRetired: { label: "Credits burned", icon: Flame, tone: "text-amber-700 bg-amber-50" },
   CertificateIssued: { label: "Certificate issued", icon: Award, tone: "text-brand-700 bg-brand-100" },
+  RewardAccrued: { label: "Mining reward anchored", icon: Coins, tone: "text-brand-700 bg-brand-50" },
+  RewardSettled: { label: "Mining reward settled", icon: BadgeCheck, tone: "text-brand-700 bg-brand-50" },
 };
 
 export default function ExplorerPage() {
   const [status, setStatus] = useState<ChainStatus | null>(null);
   const [events, setEvents] = useState<ChainEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  // ?tx=<hash> deep link (from certificate "View on-chain" buttons) — read from
+  // location instead of useSearchParams to keep the page statically prerenderable.
+  const [focusTx, setFocusTx] = useState<string | null>(null);
+  const scrolledToFocus = useRef(false);
+  useEffect(() => {
+    const tx = new URLSearchParams(window.location.search).get("tx");
+    if (tx) setFocusTx(tx.toLowerCase());
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -145,8 +155,18 @@ export default function ExplorerPage() {
                   {events.map((e, i) => {
                     const meta = KIND_META[e.kind] ?? KIND_META.BatchRegistered;
                     const Icon = meta.icon;
+                    const focused = !!focusTx && e.txHash.toLowerCase() === focusTx;
                     return (
-                      <li key={e.txHash + i} className="ml-6">
+                      <li
+                        key={e.txHash + i}
+                        className={clsx("ml-6", focused && "rounded-xl ring-2 ring-brand-400 bg-brand-50/50 p-3 -m-1")}
+                        ref={focused ? (el) => {
+                          if (el && !scrolledToFocus.current) {
+                            scrolledToFocus.current = true;
+                            el.scrollIntoView({ block: "center" });
+                          }
+                        } : undefined}
+                      >
                         <span className={clsx("absolute -left-[13px] grid place-items-center h-[26px] w-[26px] rounded-full border-2 border-canvas", meta.tone)}>
                           <Icon className="h-3.5 w-3.5" />
                         </span>
@@ -154,11 +174,14 @@ export default function ExplorerPage() {
                           <p className="text-sm font-semibold text-ink">
                             {meta.label}
                             {e.amount && <span className="ml-2 tnum text-brand-700">{fmtCompact(Number(e.amount))} t</span>}
+                            {focused && <span className="ml-2 text-[10px] uppercase tracking-wide text-brand-700">your transaction</span>}
                           </p>
                           <p className="text-[11px] text-ink-faint tnum">block {e.blockNumber} · {e.timestamp ? timeAgo(e.timestamp) : ""}</p>
                         </div>
                         <p className="text-xs text-ink-soft mt-0.5">{e.detail}</p>
-                        <p className="text-[11px] text-ink-faint tnum mt-1">tx {e.txHash.slice(0, 22)}…</p>
+                        <p className={clsx("text-[11px] tnum mt-1 break-all", focused ? "text-ink" : "text-ink-faint")}>
+                          tx {focused ? e.txHash : `${e.txHash.slice(0, 22)}…`}
+                        </p>
                       </li>
                     );
                   })}

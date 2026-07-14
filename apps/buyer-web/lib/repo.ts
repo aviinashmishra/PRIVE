@@ -34,12 +34,6 @@ export interface OrderDTO {
 const memRetirements: RetirementDTO[] = [];
 const memOrders: OrderDTO[] = [];
 
-function genCert() {
-  return "PRV-CERT-" + Math.floor(1000 + Math.random() * 9000);
-}
-function genTx() {
-  return "0x" + Math.random().toString(16).slice(2, 6) + "…" + Math.random().toString(16).slice(2, 6);
-}
 
 export async function listRetirements(accountId = DEMO_ACCOUNT_ID): Promise<RetirementDTO[]> {
   if (hasDb && db) {
@@ -63,16 +57,22 @@ export async function listRetirements(accountId = DEMO_ACCOUNT_ID): Promise<Reti
   return [...memRetirements].sort((a, b) => b.time - a.time);
 }
 
+// certId/txHash come from the real on-chain burn (RetirementVault). When the
+// chain is unreachable the route passes txHash: "" and status "recorded" — we
+// never fabricate a hash; the UI shows the record as awaiting its anchor.
 export async function createRetirement(input: {
   symbol: string;
   name: string;
   qty: number;
   beneficiary: string;
+  certId: string;
+  txHash: string;
+  status?: string;
   accountId?: string;
 }): Promise<RetirementDTO> {
   const accountId = input.accountId ?? DEMO_ACCOUNT_ID;
-  const certId = genCert();
-  const txHash = genTx();
+  const { certId, txHash } = input;
+  const status = input.status ?? "confirmed";
   if (hasDb && db) {
     const [row] = await db
       .insert(retirements)
@@ -84,7 +84,7 @@ export async function createRetirement(input: {
         beneficiary: input.beneficiary,
         certId,
         txHash,
-        status: "confirmed",
+        status,
       })
       .returning();
     return {
@@ -107,7 +107,7 @@ export async function createRetirement(input: {
     beneficiary: input.beneficiary,
     certId,
     txHash,
-    status: "confirmed",
+    status,
     time: Date.now(),
   };
   memRetirements.push(rec);

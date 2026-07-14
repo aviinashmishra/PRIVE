@@ -1,48 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getChainStatus, postChainRetire, ChainStatus } from "@/lib/api";
-import { toast } from "@/components/ui/Toast";
-import { fmtCompact, clsx } from "@/lib/format";
+import { getChainStatus, ChainStatus } from "@/lib/api";
+import { fmtCompact } from "@/lib/format";
 import { Link2, Flame, Loader2, ShieldCheck, Boxes, Award, CircleOff } from "lucide-react";
 
-/// Live view of the REAL blockchain: reads CreditRegistry + RetirementVault state over RPC
-/// and lets you execute a genuine on-chain retirement (burn + certificate NFT mint).
-export function ChainPanel() {
+/// Live view of the REAL blockchain: reads CreditRegistry + RetirementVault state
+/// over RPC. Retirements placed with the form below burn credits on this ledger.
+export function ChainPanel({ onStatus }: { onStatus?: (s: ChainStatus) => void }) {
   const [status, setStatus] = useState<ChainStatus | null>(null);
-  const [amount, setAmount] = useState("25");
-  const [busy, setBusy] = useState(false);
-  const [lastTx, setLastTx] = useState<{ txHash: string; certificateId: string; blockNumber: number } | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      setStatus(await getChainStatus());
+      const s = await getChainStatus();
+      setStatus(s);
+      onStatus?.(s);
     } catch {
       /* keep prior */
     }
-  }, []);
+  }, [onStatus]);
 
   useEffect(() => {
     refresh();
     const id = setInterval(refresh, 6000);
     return () => clearInterval(id);
   }, [refresh]);
-
-  const retire = async () => {
-    const amt = parseInt(amount) || 0;
-    if (amt <= 0) { toast.error("Enter an amount"); return; }
-    setBusy(true);
-    try {
-      const res = await postChainRetire(amt, "Prive Demo · On-chain");
-      setLastTx(res);
-      toast.success(`Burned ${amt} t on-chain`, `Certificate NFT #${res.certificateId} · block ${res.blockNumber}`);
-      await refresh();
-    } catch (e) {
-      toast.error("On-chain retirement failed", String(e).slice(0, 120));
-    } finally {
-      setBusy(false);
-    }
-  };
 
   if (!status) {
     return (
@@ -63,6 +45,7 @@ export function ChainPanel() {
           {!status.configured
             ? "Contracts not deployed yet. From /contracts run: npm run node (terminal 1), then npm run deploy:local (terminal 2)."
             : `Deployed but the RPC node isn't reachable (${status.error?.slice(0, 80)}…). Start it with: npm run node in /contracts.`}
+          {" "}Retirements placed while the chain is offline are recorded on the ledger and shown without a transaction hash.
         </p>
       </div>
     );
@@ -84,7 +67,7 @@ export function ChainPanel() {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { k: "Minted on-chain", v: fmtCompact(Number(b.totalMinted)) + " t", icon: Boxes },
           { k: "Retired (burned)", v: fmtCompact(Number(b.totalRetired)) + " t", icon: Flame },
@@ -103,29 +86,9 @@ export function ChainPanel() {
           );
         })}
       </div>
-
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="block">
-          <span className="text-xs text-ink-faint">Burn amount (tCO₂e)</span>
-          <input
-            value={amount}
-            onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
-            inputMode="numeric"
-            className="mt-1 w-36 rounded-xl border border-line bg-paper px-3 py-2.5 text-sm tnum outline-none focus:border-brand-400"
-          />
-        </label>
-        <button onClick={retire} disabled={busy} className="btn-primary py-2.5">
-          {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Mining tx…</> : <><Flame className="h-4 w-4" /> Burn on-chain</>}
-        </button>
-        {lastTx && (
-          <p className="text-[11px] text-ink-soft tnum">
-            ✓ tx {lastTx.txHash.slice(0, 10)}… · cert #{lastTx.certificateId} · block {lastTx.blockNumber}
-          </p>
-        )}
-      </div>
-      <p className="mt-3 text-[11px] text-ink-faint">
-        This panel is not simulated: it reads CreditRegistry/RetirementVault over JSON-RPC and the button submits a
-        real transaction that burns ERC-1155 credits and mints a soulbound certificate NFT.
+      <p className="mt-4 text-[11px] text-ink-faint">
+        This panel is not simulated: it reads CreditRegistry/RetirementVault over JSON-RPC. Retiring credits below
+        submits a real transaction that burns ERC-1155 credits and mints a soulbound certificate NFT.
       </p>
     </div>
   );
