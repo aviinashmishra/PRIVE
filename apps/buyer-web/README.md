@@ -102,12 +102,12 @@ Live pricing, matching, and the rest of the portfolio remain the in-memory simul
 
 ```bash
 cp .env.example .env.local        # then paste your Neon pooled connection string
-npm run db:setup                  # runs the migration + seeds account, markets, a sample cert
+npm run db:setup                  # runs the migration + seeds accounts, users, markets, wallets
 npm run dev
 ```
 
 - `npm run db:migrate` — applies every `db/migrations/*.sql` in order (idempotent)
-- `npm run db:seed` — seeds accounts, the three demo users, market catalog, and one sample retirement
+- `npm run db:seed` — seeds accounts, the three demo users, market catalog, and wallet holdings
 - Health check: open `http://localhost:3000/api/health` → `"database": "neon"` when connected.
 - Works with **any Postgres**, not just Neon: non-`neon.tech` URLs automatically use the
   node-postgres driver (this is how the Docker stack connects).

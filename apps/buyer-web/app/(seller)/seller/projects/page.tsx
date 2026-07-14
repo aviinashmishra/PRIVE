@@ -101,7 +101,7 @@ export default function SellerProjects() {
             </Field>
           </div>
           <div className="flex items-center justify-between mt-5 pt-4 border-t border-line">
-            <p className="text-xs text-ink-faint flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Documents (PDD, verifier certs) are hashed to IPFS in production.</p>
+            <p className="text-xs text-ink-faint flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Your submission goes to the Prive verification desk for review.</p>
             <div className="flex gap-2">
               <button onClick={() => setOpen(false)} className="btn-outline">Cancel</button>
               <button onClick={submit} disabled={saving} className="btn-primary">

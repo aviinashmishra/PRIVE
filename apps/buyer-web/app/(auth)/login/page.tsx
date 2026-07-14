@@ -77,13 +77,6 @@ function LoginForm() {
           Create an account
         </Link>
       </p>
-      <div className="mt-5 rounded-xl border border-line bg-mist px-4 py-3 text-[12px] text-ink-soft leading-relaxed">
-        <p className="font-semibold text-ink mb-1">Demo accounts</p>
-        <p>trader@prive.exchange · seller@prive.exchange · admin@prive.exchange</p>
-        <p className="text-ink-faint mt-1">
-          Default passwords Trader/Seller/Admin!Prive2026 — unless overridden via SEED_*_PASSWORD.
-        </p>
-      </div>
     </div>
   );
 }
